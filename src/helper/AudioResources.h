@@ -5,6 +5,7 @@
 #include <Audio.h>
 
 class AudioResources {
+   public:
     AudioResources();
 
     int activeInput = AUDIO_INPUT_LINEIN;

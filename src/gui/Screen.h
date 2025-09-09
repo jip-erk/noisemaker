@@ -12,6 +12,7 @@ class Screen {
     U8G2_SH1106_128X64_NONAME_F_2ND_HW_I2C* getDisplay();
 
     void drawItemList(int x, int y, const char* items[], int selectedIndex);
+    void drawBox(int x, int y, int w, int h);
 
     typedef struct area {
         int x1;

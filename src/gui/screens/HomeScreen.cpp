@@ -2,11 +2,16 @@
 
 #include "../Screen.h"
 
-HomeScreen::HomeScreen() {};
-
-HomeScreen::HomeScreen(Controls *keyboard, Screen *screen) {
+HomeScreen::HomeScreen(Controls *keyboard, Screen *screen,
+                       NavigationCallback navCallback) {
     _keyboard = keyboard;
     _screen = screen;
+    _navCallback = navCallback;
+}
+
+void HomeScreen::refresh() {
+    const char *menuItems[] = {"Recorder", "Live", nullptr};
+    _screen->drawItemList(0, 20, menuItems, _selectedIndex);
 }
 
 void HomeScreen::handleEvent(Controls::ButtonEvent event) {
@@ -15,12 +20,18 @@ void HomeScreen::handleEvent(Controls::ButtonEvent event) {
     int itemCount = 0;
     while (menuItems[itemCount] != nullptr) itemCount++;
 
-    static int selectedIndex = 0;
-
     if (event.buttonId == 0) {
-        selectedIndex += event.encoderValue;
-        selectedIndex = constrain(selectedIndex, 0, itemCount - 1);
+        _selectedIndex += event.encoderValue;
+        _selectedIndex = constrain(_selectedIndex, 0, itemCount - 1);
+    } else if (event.buttonId == 2 &&
+               event.state == PRESSED) {  // Button 1 - Select
+        if (_navCallback) {
+            AppContext targetContext =
+                (_selectedIndex == 0) ? AppContext::RECORDER : AppContext::LIVE;
+            _navCallback(targetContext);
+            return;
+        }
     }
 
-    _screen->drawItemList(0, 20, menuItems, selectedIndex);
+    refresh();
 }

@@ -13,10 +13,12 @@ void Screen::clear() { u8g2.clearBuffer(); }
 
 void Screen::display() { u8g2.sendBuffer(); }
 
-void Screen::drawStr(int x, int y, const char* str) {
-    u8g2.clearBuffer();
-    u8g2.drawStr(x, y, str);
-    u8g2.sendBuffer();
+void Screen::drawStr(int x, int y, const char* str) { u8g2.drawStr(x, y, str); }
+
+void Screen::drawBox(int x, int y, int w, int h) {
+    // Set draw color to white/foreground
+    u8g2.setDrawColor(1);    
+    u8g2.drawRBox(x, y, w, h, 3);
 }
 
 void Screen::drawItemList(int x, int y, const char* items[],
