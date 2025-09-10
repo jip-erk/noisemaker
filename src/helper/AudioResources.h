@@ -7,8 +7,9 @@
 class AudioResources {
    public:
     AudioResources();
+    ~AudioResources();
 
-    int activeInput = AUDIO_INPUT_LINEIN;
+    int activeInput = AUDIO_INPUT_MIC;
 
     const float maxVolume = 1.0;
     const int maxMicGain = 63;
@@ -24,6 +25,10 @@ class AudioResources {
     AudioControlSGTL5000 audioShield;
     AudioAnalyzePeak peak1;
     AudioRecordQueue queue1;
+    
+    // Audio connections
+    AudioConnection patchCord1;
+    AudioConnection patchCord2;
 };
 
 #endif

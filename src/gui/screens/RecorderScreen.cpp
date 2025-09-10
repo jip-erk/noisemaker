@@ -5,6 +5,15 @@ RecorderScreen::RecorderScreen(Controls *keyboard, Screen *screen,
     _keyboard = keyboard;
     _screen = screen;
     _navCallback = navCallback;
+    _audioResources = nullptr; // Will be set externally
+    _wavWriter = nullptr; // Will be created when audio resources are set
+}
+
+RecorderScreen::~RecorderScreen() {
+    if (_wavWriter) {
+        delete _wavWriter;
+        _wavWriter = nullptr;
+    }
 }
 
 void RecorderScreen::refresh() {
@@ -13,6 +22,12 @@ void RecorderScreen::refresh() {
     _screen->drawStr(0, 8, "Recorder");
     _screen->drawStr(0, 35, "Hold enter to start");
     _screen->display();
+}
+
+void RecorderScreen::setAudioResources(AudioResources* audioResources) {
+    _audioResources = audioResources;
+    // Create WavFileWriter with the audio queue
+    _wavWriter = new WavFileWriter(_audioResources->queue1);
 }
 
 void RecorderScreen::handleEvent(Controls::ButtonEvent event) {
@@ -26,8 +41,11 @@ void RecorderScreen::handleEvent(Controls::ButtonEvent event) {
     if (event.buttonId == 2 && event.state == LONG_PRESSED) {
         if (currentState == RECORDER_HOME) {
             currentState = RECORDER_RECORDING;
-            Serial.println("holding");
             showRecorderScreen();
+        } else if (currentState == RECORDER_RECORDING) {
+            // Stop recording on long press while recording
+            stopRecording();
+            refresh();
         }
         return;
     }
@@ -46,55 +64,46 @@ void RecorderScreen::showRecorderScreen() {
     _screen->display();
 
     startRecording();
-
-    unsigned long startTime = millis();
-    while (millis() - startTime < 2000) {
-        continueRecording();
-    }
-    stopRecording();
 }
 
-// recorder
-
 void RecorderScreen::startRecording() {
-    if (_sfsio->isRecodingAvailable()) {
-        _sfsio->deleteFile(_sfsio->recorderFilename);
+    // Check if audio resources and WAV writer are available
+    if (!_audioResources || !_wavWriter) {
+        return;
     }
 
-    _frec = SD.open(_sfsio->recorderFilename, FILE_WRITE);
+    // Create RECORDINGS folder if it doesn't exist
+    if (!SD.exists("/RECORDINGS")) {
+        SD.mkdir("/RECORDINGS");
+    }
 
-    if (_frec) {
+    // Generate unique filename with timestamp
+    String filename = "/RECORDINGS/RECORD_" + String(millis()) + ".WAV";
+
+    // Start WAV recording
+    if (_wavWriter->open(filename.c_str(), 44100, 1)) {
         currentState = RECORDER_RECORDING;
-
-        _audioResources->queue1.begin();
+        _recordingStartTime = millis();
     }
 }
 
 void RecorderScreen::continueRecording() {
-    if (_audioResources->queue1.available() >= 2) {
-        //    if (_audioResources->queue1.available() > 40)
-        //    Serial.println(_audioResources->queue1.available());
-
-        byte buffer[512];
-        memcpy(buffer, _audioResources->queue1.readBuffer(), 256);
-        _audioResources->queue1.freeBuffer();
-        memcpy(buffer + 256, _audioResources->queue1.readBuffer(), 256);
-        _audioResources->queue1.freeBuffer();
-        // write all 512 bytes to the SD card
-        _frec.write(buffer, 512);
+    // Check if WAV writer is available and writing
+    if (!_wavWriter || !_wavWriter->isWriting()) {
+        return;
     }
+
+    // Update the WAV file with new audio data
+    _wavWriter->update();
 }
 
 void RecorderScreen::stopRecording() {
-        _audioResources->queue1.end();
-      
-        // write last bit of buffer to file..
-        while (_audioResources->queue1.available() > 0) {
-          _frec.write((byte*)_audioResources->queue1.readBuffer(), 256);
-          _audioResources->queue1.freeBuffer();
-        }
-      
-        _frec.close();
+    if (!_wavWriter || !_wavWriter->isWriting()) {
+        return;
+    }
 
-        _sfsio->generateWaveFormBufferForSample(3, 0);
-      }
+    // Close the WAV file
+    if (_wavWriter->close()) {
+        currentState = RECORDER_HOME;
+    }
+}

@@ -6,7 +6,7 @@
 #include "../../hardware/Controls.h"
 #include "../../helper/AudioResources.h"
 #include "../../helper/FSIO.h"
-#include "../../helper/SampleFSIO.h"
+#include "../../helper/WavFileWriter.hpp"
 #include "../../main.h"
 #include "../Screen.h"
 
@@ -16,9 +16,12 @@ class RecorderScreen {
 
     RecorderScreen(Controls *keyboard, Screen *screen,
                    NavigationCallback navCallback = nullptr);
+    ~RecorderScreen();
 
     void handleEvent(Controls::ButtonEvent);
     void refresh();
+    void setAudioResources(AudioResources* audioResources);
+
     void showRecorderScreen();
 
     void startRecording();
@@ -41,10 +44,10 @@ class RecorderScreen {
     int _selectedIndex = 0;
 
     FSIO *_fsio;
-    SampleFSIO *_sfsio;
     AudioResources *_audioResources;
+    WavFileWriter *_wavWriter;
     boolean _isRecording = false;
-    File _frec;
+    unsigned long _recordingStartTime = 0;
 };
 
 #endif

@@ -16,8 +16,10 @@
 #include "hardware/Controls.h"
 #include "helper/AudioResources.h"
 #include "helper/FSIO.h"
-#include "helper/SampleFSIO.h"
 
+#define SDCARD_CS_PIN 10
+#define SDCARD_MOSI_PIN 11
+#define SDCARD_SCK_PIN 13
 // U8g2 constructor for SH1106 128x64 I2C display using Wire2
 // U8G2_SH1106_128X64_NONAME_F_2ND_HW_I2C u8g2(U8G2_R0, /*
 // reset=*/U8X8_PIN_NONE);
@@ -34,6 +36,7 @@ void changeContext(AppContext newContext);
 
 HomeScreen homeContext(&controls, &screen, changeContext);
 RecorderScreen recorderContext(&controls, &screen, changeContext);
+AudioResources audioResources;
 
 void changeContext(AppContext newContext) {
     lastAppContext = currentAppContext;
@@ -78,8 +81,31 @@ void handleControlEvent(Controls::ButtonEvent event) {
 void setup(void) {
     Serial.begin(9600);
 
+    AudioMemoryUsageMaxReset();
+    AudioMemory(100);
+
+    audioResources.audioShield.enable();
+    delay(100);  // Give time for audio shield to initialize
+    audioResources.audioShield.inputSelect(AUDIO_INPUT_MIC);
+    // audioResources.audioShield.micGain(20);
+    audioResources.audioShield.volume(.5);
+
+    SPI.setMOSI(SDCARD_MOSI_PIN);
+    SPI.setSCK(SDCARD_SCK_PIN);
+    if (!(SD.begin(SDCARD_CS_PIN))) {
+        // stop here if no SD card, but print a message
+        while (1) {
+            Serial.println("Unable to access the SD card");
+            Serial.println(SDCARD_CS_PIN);
+            delay(500);
+        }
+    }
+
     screen.begin();
     controls.setEventCallback(handleControlEvent);
+
+    // Set up audio resources for recorder
+    recorderContext.setAudioResources(&audioResources);
 
     currentAppContext = AppContext::HOME;
     homeContext.refresh();
@@ -87,4 +113,9 @@ void setup(void) {
     // u8g2.begin();
 }
 
-void loop(void) { controls.tick(); }
+void loop(void) {
+    if (recorderContext.currentState == recorderContext.RECORDER_RECORDING)
+        recorderContext.continueRecording();
+
+    controls.tick();
+}
