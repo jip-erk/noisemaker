@@ -13,6 +13,7 @@
 #include "gui/Screen.h"
 #include "gui/screens/HomeScreen.h"
 #include "gui/screens/RecorderScreen.h"
+#include "gui/screens/LiveScreen.h"
 #include "hardware/Controls.h"
 #include "helper/AudioResources.h"
 #include "helper/FSIO.h"
@@ -36,6 +37,7 @@ void changeContext(AppContext newContext);
 
 HomeScreen homeContext(&controls, &screen, changeContext);
 RecorderScreen recorderContext(&controls, &screen, changeContext);
+LiveScreen liveContext(&controls, &screen, changeContext);
 AudioResources audioResources;
 
 void changeContext(AppContext newContext) {
@@ -50,7 +52,7 @@ void changeContext(AppContext newContext) {
             recorderContext.refresh();
             break;
         case AppContext::LIVE:
-            // liveContext.handleEvent(event);
+            liveContext.refresh();
             break;
         default:
             break;
@@ -67,7 +69,7 @@ void sendEventToActiveContext(Controls::ButtonEvent event) {
             recorderContext.handleEvent(event);
             break;
         case AppContext::LIVE:
-            // liveContext.handleEvent(event);
+            liveContext.handleEvent(event);
             break;
         default:
             break;
@@ -87,8 +89,8 @@ void setup(void) {
     audioResources.audioShield.enable();
     delay(100);  // Give time for audio shield to initialize
     audioResources.audioShield.inputSelect(AUDIO_INPUT_MIC);
-    // audioResources.audioShield.micGain(20);
-    audioResources.audioShield.volume(.5);
+    audioResources.audioShield.micGain(10);
+    audioResources.audioShield.volume(.8);  // Set initial volume to 20%
 
     SPI.setMOSI(SDCARD_MOSI_PIN);
     SPI.setSCK(SDCARD_SCK_PIN);
@@ -104,8 +106,9 @@ void setup(void) {
     screen.begin();
     controls.setEventCallback(handleControlEvent);
 
-    // Set up audio resources for recorder
+    // Set up audio resources for recorder and live screen
     recorderContext.setAudioResources(&audioResources);
+    liveContext.setAudioResources(&audioResources);
 
     currentAppContext = AppContext::HOME;
     homeContext.refresh();
@@ -114,8 +117,27 @@ void setup(void) {
 }
 
 void loop(void) {
-    if (recorderContext.currentState == recorderContext.RECORDER_RECORDING)
-        recorderContext.continueRecording();
+    // Only update recorder context when it's the active context
+    if (currentAppContext == AppContext::RECORDER) {
+        if (recorderContext.currentState == recorderContext.RECORDER_RECORDING)
+            recorderContext.continueRecording();
+        else if (recorderContext.currentState ==
+                 recorderContext.RECORDER_WAITING_FOR_SOUND)
+            recorderContext.checkVolumeThreshold();
+        else if (recorderContext.currentState ==
+                 recorderContext.RECORDER_HOME) {
+            // Update volume bar on home screen
+            recorderContext.updateVolumeBar();
+        }
+    }
+    
+    // Update live context when it's the active context
+    if (currentAppContext == AppContext::LIVE) {
+        if (liveContext.currentState == liveContext.LIVE_PLAYING || 
+            liveContext.currentState == liveContext.LIVE_PAUSED) {
+            liveContext.updatePlayback();
+        }
+    }
 
     controls.tick();
 }

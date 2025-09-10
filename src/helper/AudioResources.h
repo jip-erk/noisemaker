@@ -25,10 +25,15 @@ class AudioResources {
     AudioControlSGTL5000 audioShield;
     AudioAnalyzePeak peak1;
     AudioRecordQueue queue1;
+    AudioPlaySdWav playWav1;
+    AudioMixer4 mixer1;
     
     // Audio connections
     AudioConnection patchCord1;
     AudioConnection patchCord2;
+    AudioConnection patchCord3;
+    AudioConnection patchCord4;
+    AudioConnection patchCord5;
 };
 
 #endif

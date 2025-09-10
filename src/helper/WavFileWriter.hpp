@@ -14,6 +14,7 @@ public:
     bool isWriting();
     bool update();
     bool close();
+    File& getFile() { return m_file; }
     
 private:
     void writeHeader(unsigned int sampleRate, unsigned int channelCount);
