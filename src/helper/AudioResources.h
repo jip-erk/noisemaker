@@ -21,7 +21,7 @@ class AudioResources {
     byte currentLineInLevel = 0;
 
     AudioInputI2S audioInput;
-    AudioOutputI2S audioOutput;
+    AudioOutputUSB audioOutput;
     AudioControlSGTL5000 audioShield;
     AudioAnalyzePeak peak1;
     AudioRecordQueue queue1;

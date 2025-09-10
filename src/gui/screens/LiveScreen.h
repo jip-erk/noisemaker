@@ -20,6 +20,7 @@ class LiveScreen {
     void handleEvent(Controls::ButtonEvent);
     void refresh();
     void setAudioResources(AudioResources* audioResources);
+    void updatePlayback();
 
     enum LiveState {
         LIVE_HOME = 0,
@@ -45,7 +46,6 @@ class LiveScreen {
     void loadFileList();
     void playSelectedFile();
     void stopPlayback();
-    void updatePlayback();
     void drawFileList();
     void drawPlaybackInfo();
 };

@@ -19,9 +19,13 @@ void LiveScreen::refresh() {
     _screen->clear();
     _screen->drawStr(0, 8, "Live Samples");
     
+    // Debug: Show file count
+    String debugText = "Files: " + String(_fileCount);
+    _screen->drawStr(0, 20, debugText.c_str());
+    
     if (_fileCount == 0) {
-        _screen->drawStr(0, 30, "No samples found");
-        _screen->drawStr(0, 45, "Record some first!");
+        _screen->drawStr(0, 35, "No samples found");
+        _screen->drawStr(0, 50, "Record some first!");
     } else {
         drawFileList();
     }
@@ -66,22 +70,23 @@ void LiveScreen::handleEvent(Controls::ButtonEvent event) {
             // Redraw file list with new selection
             _screen->clear();
             _screen->drawStr(0, 8, "Live Samples");
-            drawFileList();
+            
+            // Debug: Show file count
+            String debugText = "Files: " + String(_fileCount);
+            _screen->drawStr(0, 20, debugText.c_str());
+            
+            if (_fileCount > 0) {
+                drawFileList();
+            } else {
+                _screen->drawStr(0, 35, "No samples found");
+                _screen->drawStr(0, 50, "Record some first!");
+            }
             _screen->display();
         }
         return;
     }
 
-    // Handle encoder for volume control during playback
-    if (event.buttonId == 0 && (currentState == LIVE_PLAYING || currentState == LIVE_PAUSED)) {
-        if (_audioResources && event.encoderValue != 0) {
-            float volumeChange = event.encoderValue * 0.05; // 5% steps
-            _audioResources->currentVolume += volumeChange;
-            _audioResources->currentVolume = constrain(_audioResources->currentVolume, 0.0, 1.0);
-            _audioResources->audioShield.volume(_audioResources->currentVolume);
-        }
-        return;
-    }
+    // Note: Volume control removed for USB audio - controlled by host system
 
     // Handle stop playback (button 3 or long press on button 2)
     if (event.buttonId == 3 && event.state == PRESSED) {
@@ -99,30 +104,52 @@ void LiveScreen::loadFileList() {
     
     // Check if RECORDINGS directory exists
     if (!SD.exists("/RECORDINGS")) {
+        Serial.println("RECORDINGS directory does not exist");
         return;
     }
     
     File recordingsDir = SD.open("/RECORDINGS");
     if (!recordingsDir) {
+        Serial.println("Failed to open RECORDINGS directory");
         return;
     }
     
+    if (!recordingsDir.isDirectory()) {
+        Serial.println("RECORDINGS is not a directory");
+        recordingsDir.close();
+        return;
+    }
+    
+    Serial.println("Scanning RECORDINGS directory...");
+    
     // Read all .WAV files
-    while (recordingsDir.available() && _fileCount < 20) {
+    while (true && _fileCount < 20) {
         File entry = recordingsDir.openNextFile();
-        if (!entry) break;
+        if (!entry) {
+            Serial.println("No more entries");
+            break;
+        }
+        
+        String filename = entry.name();
+        Serial.println("Found entry: " + filename + " (isDir: " + String(entry.isDirectory()) + ")");
         
         if (!entry.isDirectory()) {
-            String filename = entry.name();
             if (filename.endsWith(".WAV") || filename.endsWith(".wav")) {
                 _fileList[_fileCount] = filename;
                 _fileCount++;
+                Serial.println("Added to list: " + filename);
+            } else {
+                Serial.println("Skipped (not WAV): " + filename);
             }
+        } else {
+            Serial.println("Skipped directory: " + filename);
         }
         entry.close();
     }
     
     recordingsDir.close();
+    
+    Serial.println("Total files found: " + String(_fileCount));
     
     // Reset selection if out of bounds
     if (_selectedIndex >= _fileCount) {
@@ -142,15 +169,11 @@ void LiveScreen::playSelectedFile() {
     // Start playing the WAV file
     String fullPath = "/RECORDINGS/" + _currentPlayingFile;
     if (_audioResources->playWav1.play(fullPath.c_str())) {
-        // Switch mixer to playback mode
-        _audioResources->mixer1.gain(0, 1.0); // Playback channel
-        _audioResources->mixer1.gain(1, 0.0); // Input channel (muted)
-        
         _screen->clear();
         _screen->drawStr(0, 8, "Playing:");
         _screen->drawStr(0, 20, _currentPlayingFile.c_str());
         _screen->drawStr(0, 35, "Click to pause");
-        _screen->drawStr(0, 50, "Hold to stop");
+        _screen->drawStr(0, 50, "USB Audio");
         _screen->display();
     } else {
         // Failed to play file
@@ -168,9 +191,6 @@ void LiveScreen::stopPlayback() {
     // Stop audio playback
     if (_audioResources) {
         _audioResources->playWav1.stop();
-        // Switch mixer back to input mode
-        _audioResources->mixer1.gain(0, 0.0); // Playback channel (muted)
-        _audioResources->mixer1.gain(1, 1.0); // Input channel
     }
     
     currentState = LIVE_HOME;
@@ -206,11 +226,8 @@ void LiveScreen::updatePlayback() {
     String timeStr = String(minutes) + ":" + (seconds < 10 ? "0" : "") + String(seconds);
     _screen->drawStr(0, 35, timeStr.c_str());
     
-    // Show volume
-    if (_audioResources) {
-        String volStr = "Vol: " + String((int)(_audioResources->currentVolume * 100)) + "%";
-        _screen->drawStr(0, 50, volStr.c_str());
-    }
+    // Show USB audio info
+    _screen->drawStr(0, 50, "USB Audio");
     
     _screen->display();
 }
@@ -220,9 +237,9 @@ void LiveScreen::drawFileList() {
     
     // Calculate which files to show (scrollable list)
     int startIndex = max(0, _selectedIndex - 2);
-    int endIndex = min(_fileCount, startIndex + 5);
+    int endIndex = min(_fileCount, startIndex + 3); // Reduced to fit with debug text
     
-    int yPos = 20;
+    int yPos = 30; // Start below debug text
     for (int i = startIndex; i < endIndex; i++) {
         if (i == _selectedIndex) {
             // Highlight selected item
@@ -246,7 +263,7 @@ void LiveScreen::drawFileList() {
     }
     
     // Show selection indicator
-    if (_fileCount > 5) {
+    if (_fileCount > 3) {
         _screen->drawStr(120, 60, "^");
     }
 }

@@ -44,6 +44,17 @@ void changeContext(AppContext newContext) {
     lastAppContext = currentAppContext;
     currentAppContext = newContext;
 
+    // Mute/unmute microphone based on context
+    if (currentAppContext == AppContext::LIVE) {
+        // Mute mic input in live context - ALWAYS muted
+        audioResources.mixer1.gain(1, 0.0); // Input channel muted
+        audioResources.mixer1.gain(0, 1.0); // Playback channel active
+    } else {
+        // Unmute mic input in other contexts
+        audioResources.mixer1.gain(1, 1.0); // Input channel active
+        audioResources.mixer1.gain(0, 0.0); // Playback channel muted
+    }
+
     switch (currentAppContext) {
         case AppContext::HOME:
             homeContext.refresh();
@@ -90,7 +101,7 @@ void setup(void) {
     delay(100);  // Give time for audio shield to initialize
     audioResources.audioShield.inputSelect(AUDIO_INPUT_MIC);
     audioResources.audioShield.micGain(10);
-    audioResources.audioShield.volume(.8);  // Set initial volume to 20%
+    // USB audio doesn't use audioShield volume control - volume controlled by host
 
     SPI.setMOSI(SDCARD_MOSI_PIN);
     SPI.setSCK(SDCARD_SCK_PIN);
