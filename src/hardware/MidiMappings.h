@@ -9,17 +9,22 @@
 
 // Action types that MIDI can trigger
 enum MidiActionType {
-    MIDI_ACTION_NONE = 0,           // No action
-    MIDI_ACTION_ENCODER = 1,        // Simulate encoder rotation
-    MIDI_ACTION_BUTTON = 2,         // Simulate button press/release
-    MIDI_ACTION_NAVIGATION_UP = 3,  // Navigate menu up
-    MIDI_ACTION_NAVIGATION_DOWN = 4, // Navigate menu down
+    MIDI_ACTION_NONE = 0,              // No action
+    MIDI_ACTION_ENCODER = 1,           // Simulate encoder rotation
+    MIDI_ACTION_BUTTON = 2,            // Simulate button press/release
+    MIDI_ACTION_NAVIGATION_UP = 3,     // Navigate menu up
+    MIDI_ACTION_NAVIGATION_DOWN = 4,   // Navigate menu down
     MIDI_ACTION_NAVIGATION_SELECT = 5, // Select menu item
     MIDI_ACTION_NAVIGATION_BACK = 6,   // Go back / cancel
     MIDI_ACTION_TRANSPORT_RECORD = 7,  // Start/stop recording
     MIDI_ACTION_TRANSPORT_PLAY = 8,    // Play
     MIDI_ACTION_TRANSPORT_STOP = 9,    // Stop
-    MIDI_ACTION_CUSTOM = 100           // Custom context-specific actions
+    // Recorder editing actions
+    MIDI_ACTION_RECORDER_SET_START = 10,     // Set start position (knob 5)
+    MIDI_ACTION_RECORDER_SET_END = 11,       // Set end position (knob 6)
+    MIDI_ACTION_RECORDER_ZOOM = 12,          // Zoom waveform (knob 7)
+    MIDI_ACTION_RECORDER_UPDATE_SELECTION = 13, // Update selection (knob 8)
+    MIDI_ACTION_CUSTOM = 100               // Custom context-specific actions
 };
 
 // Structure to define what action a MIDI message triggers
@@ -50,11 +55,11 @@ class MidiMappings {
 
     // Configuration for Akai MPK Mini
     struct AkaiMPKMiniConfig {
-        // Pad note numbers (default: 36-43 for pads 1-8)
-        uint8_t padNotes[8] = {36, 37, 38, 39, 40, 41, 42, 43};
+        // Pad note numbers (configured for user's MPK Mini)
+        uint8_t padNotes[8] = {37, 36, 42, 54, 40, 38, 46, 44};
 
-        // Knob CC numbers (default: 70-77 for knobs 1-8)
-        uint8_t knobCCs[8] = {70, 71, 72, 73, 74, 75, 76, 77};
+        // Knob CC numbers (CC 1-8)
+        uint8_t knobCCs[8] = {1, 2, 3, 4, 5, 6, 7, 8};
     };
 
     AkaiMPKMiniConfig akaiConfig;
@@ -64,6 +69,9 @@ class MidiMappings {
 
     // Store last CC values to detect changes and direction
     uint8_t lastCCValues[128];
+
+    // Track which side of selection we're editing (for knob 5/6)
+    bool editingStartPosition;  // true = start, false = end
 
     // Context-specific mapping methods
     MidiAction mapHomeContext(const MidiController::MidiEvent& midiEvent);

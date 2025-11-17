@@ -1,6 +1,7 @@
 #include "MidiMappings.h"
 
-MidiMappings::MidiMappings() : currentContext(AppContext::HOME) {
+MidiMappings::MidiMappings()
+    : currentContext(AppContext::HOME), editingStartPosition(true) {
     // Initialize last CC values
     for (int i = 0; i < 128; i++) {
         lastCCValues[i] = 0;
@@ -74,9 +75,44 @@ Controls::ButtonEvent MidiMappings::actionToButtonEvent(
             break;
 
         case MIDI_ACTION_NAVIGATION_BACK:
-            // Back = button 3 press
-            event.buttonId = 3;
+            // Back = button 1 press (goes to HOME)
+            event.buttonId = 1;
             event.state = (action.value > 0) ? PRESSED : NOT_PRESSED;
+            break;
+
+        case MIDI_ACTION_RECORDER_SET_START:
+            // Set start position - use button1 flag to indicate "force start side"
+            event.buttonId = 0;
+            event.state = NOT_PRESSED;
+            event.encoderValue = action.value;
+            event.button1Held = true;  // Flag to indicate we want start side
+            event.button2Held = false;
+            event.button3Held = false;
+            break;
+
+        case MIDI_ACTION_RECORDER_SET_END:
+            // Set end position - use button2 flag to indicate "force end side"
+            event.buttonId = 0;
+            event.state = NOT_PRESSED;
+            event.encoderValue = action.value;
+            event.button1Held = false;
+            event.button2Held = true;  // Flag to indicate we want end side
+            event.button3Held = false;
+            break;
+
+        case MIDI_ACTION_RECORDER_ZOOM:
+            // Zoom = encoder with button 3 held
+            event.buttonId = 0;
+            event.state = NOT_PRESSED;
+            event.encoderValue = action.value;
+            event.button3Held = true;  // Simulate button 3 held for zoom
+            break;
+
+        case MIDI_ACTION_RECORDER_UPDATE_SELECTION:
+            // Update selection = encoder alone
+            event.buttonId = 0;
+            event.state = NOT_PRESSED;
+            event.encoderValue = action.value;
             break;
 
         default:
@@ -91,8 +127,9 @@ Controls::ButtonEvent MidiMappings::actionToButtonEvent(
 }
 
 // HOME CONTEXT MAPPINGS
-// Pads: Navigation and context switching
-// Knobs: Not used in home (could add menu scrolling)
+// Pad 1 (note 37) = Back
+// Pad 2 (note 36) = Forward/Select
+// Knob 1 (CC 1) = Navigation (like physical encoder)
 MidiAction MidiMappings::mapHomeContext(
     const MidiController::MidiEvent& midiEvent) {
     int8_t padIndex = getPadIndex(midiEvent.getNote());
@@ -102,15 +139,11 @@ MidiAction MidiMappings::mapHomeContext(
         // Pad pressed
         if (padIndex >= 0) {
             switch (padIndex) {
-                case 0:  // Pad 1: Navigate up
-                    return MidiAction(MIDI_ACTION_NAVIGATION_UP, 0, 1);
-                case 1:  // Pad 2: Navigate down
-                    return MidiAction(MIDI_ACTION_NAVIGATION_DOWN, 0, 1);
-                case 2:  // Pad 3: Select/Enter
-                    return MidiAction(MIDI_ACTION_NAVIGATION_SELECT, 0, 1);
-                case 3:  // Pad 4: Back
+                case 0:  // Pad 1 (note 37): Back
                     return MidiAction(MIDI_ACTION_NAVIGATION_BACK, 0, 1);
-                // Pads 5-8 available for future use
+                case 1:  // Pad 2 (note 36): Forward/Select
+                    return MidiAction(MIDI_ACTION_NAVIGATION_SELECT, 0, 1);
+                // Pads 3-8 available for future use
                 default:
                     break;
             }
@@ -119,16 +152,16 @@ MidiAction MidiMappings::mapHomeContext(
         // Pad released - send button release
         if (padIndex >= 0) {
             switch (padIndex) {
-                case 2:  // Pad 3: Select/Enter release
-                    return MidiAction(MIDI_ACTION_NAVIGATION_SELECT, 0, 0);
-                case 3:  // Pad 4: Back release
+                case 0:  // Pad 1: Back release
                     return MidiAction(MIDI_ACTION_NAVIGATION_BACK, 0, 0);
+                case 1:  // Pad 2: Select release
+                    return MidiAction(MIDI_ACTION_NAVIGATION_SELECT, 0, 0);
                 default:
                     break;
             }
         }
     } else if (midiEvent.isCC() && knobIndex >= 0) {
-        // Knobs can be used for scrolling in lists
+        // Knob 1 controls menu navigation (like physical encoder)
         uint8_t currentValue = midiEvent.getCCValue();
         uint8_t lastValue = lastCCValues[midiEvent.getCCNumber()];
         lastCCValues[midiEvent.getCCNumber()] = currentValue;
@@ -136,8 +169,7 @@ MidiAction MidiMappings::mapHomeContext(
         if (lastValue != 0) {  // Ignore first value (initialization)
             int8_t delta = currentValue - lastValue;
             if (delta != 0) {
-                // Knob 1 controls menu navigation
-                if (knobIndex == 0) {
+                if (knobIndex == 0) {  // Knob 1 (CC 1)
                     return MidiAction(MIDI_ACTION_ENCODER, 0,
                                       (delta > 0) ? 1 : -1);
                 }
@@ -149,8 +181,11 @@ MidiAction MidiMappings::mapHomeContext(
 }
 
 // RECORDER CONTEXT MAPPINGS
-// Pads: Transport controls + navigation
-// Knobs: Recording parameters (levels, monitoring, etc)
+// Pad 1 (note 37) = Record/Stop
+// Knob 5 (CC 5) = Set start position (in editing mode)
+// Knob 6 (CC 6) = Set end position (in editing mode)
+// Knob 7 (CC 7) = Zoom (in editing mode)
+// Knob 8 (CC 8) = Update selection (in editing mode)
 MidiAction MidiMappings::mapRecorderContext(
     const MidiController::MidiEvent& midiEvent) {
     int8_t padIndex = getPadIndex(midiEvent.getNote());
@@ -160,19 +195,9 @@ MidiAction MidiMappings::mapRecorderContext(
         // Pad pressed
         if (padIndex >= 0) {
             switch (padIndex) {
-                case 0:  // Pad 1: Record/Stop
-                    return MidiAction(MIDI_ACTION_TRANSPORT_RECORD, 0, 1);
-                case 1:  // Pad 2: Navigate up
-                    return MidiAction(MIDI_ACTION_NAVIGATION_UP, 0, 1);
-                case 2:  // Pad 3: Navigate down
-                    return MidiAction(MIDI_ACTION_NAVIGATION_DOWN, 0, 1);
-                case 3:  // Pad 4: Select/Enter
-                    return MidiAction(MIDI_ACTION_NAVIGATION_SELECT, 0, 1);
-                case 4:  // Pad 5: Back
-                    return MidiAction(MIDI_ACTION_NAVIGATION_BACK, 0, 1);
-                case 5:  // Pad 6: Button 2 (for combos)
+                case 0:  // Pad 1 (note 37): Record/Stop (triggers button 2)
                     return MidiAction(MIDI_ACTION_BUTTON, 2, 1);
-                // Pads 7-8 available
+                // Other pads available for future use
                 default:
                     break;
             }
@@ -181,20 +206,14 @@ MidiAction MidiMappings::mapRecorderContext(
         // Pad released
         if (padIndex >= 0) {
             switch (padIndex) {
-                case 0:  // Record button release
-                    return MidiAction(MIDI_ACTION_TRANSPORT_RECORD, 0, 0);
-                case 3:  // Select release
-                    return MidiAction(MIDI_ACTION_NAVIGATION_SELECT, 0, 0);
-                case 4:  // Back release
-                    return MidiAction(MIDI_ACTION_NAVIGATION_BACK, 0, 0);
-                case 5:  // Button 2 release
+                case 0:  // Pad 1 release (button 2)
                     return MidiAction(MIDI_ACTION_BUTTON, 2, 0);
                 default:
                     break;
             }
         }
     } else if (midiEvent.isCC() && knobIndex >= 0) {
-        // Knobs control recording parameters
+        // Knobs control recording and editing parameters
         uint8_t currentValue = midiEvent.getCCValue();
         uint8_t lastValue = lastCCValues[midiEvent.getCCNumber()];
         lastCCValues[midiEvent.getCCNumber()] = currentValue;
@@ -202,13 +221,36 @@ MidiAction MidiMappings::mapRecorderContext(
         if (lastValue != 0) {  // Ignore first value
             int8_t delta = currentValue - lastValue;
             if (delta != 0) {
-                // Knob 1: Main navigation encoder
-                if (knobIndex == 0) {
-                    return MidiAction(MIDI_ACTION_ENCODER, 0,
-                                      (delta > 0) ? 1 : -1);
+                int8_t direction = (delta > 0) ? 1 : -1;
+
+                switch (knobIndex) {
+                    case 0:  // Knob 1 (CC 1): Main navigation
+                        return MidiAction(MIDI_ACTION_ENCODER, 0, direction);
+
+                    case 4:  // Knob 5 (CC 5): Set start position
+                        // Track that we're editing start
+                        editingStartPosition = true;
+                        return MidiAction(MIDI_ACTION_RECORDER_SET_START, 0,
+                                          direction);
+
+                    case 5:  // Knob 6 (CC 6): Set end position
+                        // Track that we're editing end
+                        editingStartPosition = false;
+                        return MidiAction(MIDI_ACTION_RECORDER_SET_END, 0,
+                                          direction);
+
+                    case 6:  // Knob 7 (CC 7): Zoom
+                        return MidiAction(MIDI_ACTION_RECORDER_ZOOM, 0,
+                                          direction);
+
+                    case 7:  // Knob 8 (CC 8): Update selection
+                        return MidiAction(MIDI_ACTION_RECORDER_UPDATE_SELECTION,
+                                          0, direction);
+
+                    default:
+                        // Other knobs not yet mapped
+                        break;
                 }
-                // Knobs 2-8 can control recording parameters
-                // These can be expanded based on recorder needs
             }
         }
     }

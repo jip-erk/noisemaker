@@ -91,16 +91,33 @@ void RecorderScreen::handleEvent(Controls::ButtonEvent event) {
 
     // Encoder events
     if (event.buttonId == 0 && event.encoderValue != 0) {
-        // Button 3 + Encoder = Zoom
-        if (event.button3Held && !event.button1Held && !event.button2Held) {
-            _waveformSelector.zoom(event.encoderValue);
-            _waveformSelector.draw();
-            _screen->display();
-        }
-        // Encoder alone = Update selection
-        else if (!event.button1Held && !event.button2Held &&
-                 !event.button3Held) {
-            if (currentState == RECORDER_EDITING) {
+        if (currentState == RECORDER_EDITING) {
+            // MIDI Knob 5: Set start position (encoder + button1)
+            if (event.button1Held && !event.button2Held && !event.button3Held) {
+                // Ensure we're editing the start position
+                // WaveformSelector tracks which side - we may need to switch
+                _waveformSelector.ensureEditingStart();
+                _waveformSelector.updateSelection(event.encoderValue);
+                _waveformSelector.draw();
+                _screen->display();
+            }
+            // MIDI Knob 6: Set end position (encoder + button2)
+            else if (event.button2Held && !event.button1Held && !event.button3Held) {
+                // Ensure we're editing the end position
+                _waveformSelector.ensureEditingEnd();
+                _waveformSelector.updateSelection(event.encoderValue);
+                _waveformSelector.draw();
+                _screen->display();
+            }
+            // MIDI Knob 7: Zoom (encoder + button3)
+            else if (event.button3Held && !event.button1Held && !event.button2Held) {
+                _waveformSelector.zoom(event.encoderValue);
+                _waveformSelector.draw();
+                _screen->display();
+            }
+            // MIDI Knob 8 or physical encoder: Update selection
+            else if (!event.button1Held && !event.button2Held &&
+                     !event.button3Held) {
                 _waveformSelector.updateSelection(event.encoderValue);
                 _waveformSelector.draw();
                 _screen->display();

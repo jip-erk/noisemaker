@@ -113,6 +113,19 @@ class WaveformSelector {
 
     void changeSide() { selectingLeft = !selectingLeft; }
 
+    // Helper methods for MIDI control - ensure we're editing the correct side
+    void ensureEditingStart() {
+        if (!selectingLeft) {
+            selectingLeft = true;
+        }
+    }
+
+    void ensureEditingEnd() {
+        if (selectingLeft) {
+            selectingLeft = false;
+        }
+    }
+
     void draw() {
         if (!_waveform) return;
 
