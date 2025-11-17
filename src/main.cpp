@@ -15,6 +15,8 @@
 #include "gui/screens/LiveScreen.h"
 #include "gui/screens/RecorderScreen.h"
 #include "hardware/Controls.h"
+#include "hardware/MidiController.h"
+#include "hardware/MidiMappings.h"
 #include "helper/AudioResources.h"
 
 #define SDCARD_CS_PIN 10
@@ -38,6 +40,8 @@ AppContext lastAppContext;
 
 Screen screen;
 Controls controls;
+MidiController midiController;
+MidiMappings midiMappings;
 
 void changeContext(AppContext newContext);
 
@@ -49,6 +53,9 @@ AudioResources audioResources;
 void changeContext(AppContext newContext) {
     lastAppContext = currentAppContext;
     currentAppContext = newContext;
+
+    // Update MIDI mappings for new context
+    midiMappings.setContext(newContext);
 
     switch (currentAppContext) {
         case AppContext::HOME:
@@ -85,6 +92,18 @@ void handleControlEvent(Controls::ButtonEvent event) {
     sendEventToActiveContext(event);
 }
 
+void handleMidiEvent(MidiController::MidiEvent midiEvent) {
+    // Process MIDI event through mappings
+    MidiAction action = midiMappings.processEvent(midiEvent);
+
+    // Convert action to button event and send to active context
+    if (action.actionType != MIDI_ACTION_NONE) {
+        Controls::ButtonEvent buttonEvent =
+            midiMappings.actionToButtonEvent(action, &controls);
+        sendEventToActiveContext(buttonEvent);
+    }
+}
+
 void setup(void) {
     Serial.begin(9600);
 
@@ -111,6 +130,7 @@ void setup(void) {
 
     screen.begin();
     controls.setEventCallback(handleControlEvent);
+    midiController.setEventCallback(handleMidiEvent);
 
     globalTickTimer.begin(globalTick, globalTickInterval);
 
@@ -155,4 +175,5 @@ void loop(void) {
     }
 
     controls.tick();
+    midiController.tick();
 }
