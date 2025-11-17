@@ -93,14 +93,61 @@ void handleControlEvent(Controls::ButtonEvent event) {
 }
 
 void handleMidiEvent(MidiController::MidiEvent midiEvent) {
+    // Debug output - show what MIDI message was received
+    Serial.print("MIDI: ");
+
+    switch (midiEvent.type) {
+        case MIDI_NOTE_ON:
+            Serial.print("NOTE_ON  | Note: ");
+            Serial.print(midiEvent.getNote());
+            Serial.print(" | Vel: ");
+            Serial.print(midiEvent.getVelocity());
+            break;
+
+        case MIDI_NOTE_OFF:
+            Serial.print("NOTE_OFF | Note: ");
+            Serial.print(midiEvent.getNote());
+            break;
+
+        case MIDI_CONTROL_CHANGE:
+            Serial.print("CC       | Num: ");
+            Serial.print(midiEvent.getCCNumber());
+            Serial.print(" | Val: ");
+            Serial.print(midiEvent.getCCValue());
+            break;
+
+        case MIDI_PITCH_BEND:
+            Serial.print("PITCHBEND| Val: ");
+            Serial.print(midiEvent.pitch);
+            break;
+
+        default:
+            Serial.print("UNKNOWN  | Type: ");
+            Serial.print(midiEvent.type);
+            break;
+    }
+
+    Serial.print(" | Ch: ");
+    Serial.print(midiEvent.channel);
+
     // Process MIDI event through mappings
     MidiAction action = midiMappings.processEvent(midiEvent);
 
-    // Convert action to button event and send to active context
+    // Show what action it mapped to
     if (action.actionType != MIDI_ACTION_NONE) {
+        Serial.print(" -> Action: ");
+        Serial.print(action.actionType);
+        Serial.print(" (Target: ");
+        Serial.print(action.targetId);
+        Serial.print(", Val: ");
+        Serial.print(action.value);
+        Serial.println(")");
+
         Controls::ButtonEvent buttonEvent =
             midiMappings.actionToButtonEvent(action, &controls);
         sendEventToActiveContext(buttonEvent);
+    } else {
+        Serial.println(" -> No action");
     }
 }
 
