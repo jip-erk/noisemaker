@@ -55,11 +55,11 @@ class MidiMappings {
 
     // Configuration for Akai MPK Mini
     struct AkaiMPKMiniConfig {
-        // Pad note numbers (configured for user's MPK Mini)
-        uint8_t padNotes[8] = {37, 36, 42, 54, 40, 38, 46, 44};
+        // Pad note numbers (default: 36-43 for pads 1-8)
+        uint8_t padNotes[8] = {36, 37, 38, 39, 40, 41, 42, 43};
 
-        // Knob CC numbers (CC 1-8)
-        uint8_t knobCCs[8] = {1, 2, 3, 4, 5, 6, 7, 8};
+        // Knob CC numbers (default: 70-77 for knobs 1-8)
+        uint8_t knobCCs[8] = {70, 71, 72, 73, 74, 75, 76, 77};
     };
 
     AkaiMPKMiniConfig akaiConfig;

@@ -62,6 +62,13 @@ class RecorderScreen {
     unsigned long _recordingStartTime = 0;
     String _recordedFileName;
     NameGenerator gen;
+
+    // Rate limiting for display updates
+    unsigned long _lastDisplayUpdate = 0;
+    bool _needsDisplayUpdate = false;
+    static const unsigned long DISPLAY_UPDATE_INTERVAL_MS = 50;  // 20 Hz max
+
+    void updateDisplayIfNeeded();
 };
 
 #endif

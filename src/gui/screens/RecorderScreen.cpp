@@ -31,6 +31,9 @@ long RecorderScreen::receiveTimerTick() {
     } else if (currentState == RECORDER_RECORDING) {
         updateWaveform();
         return WAVEFORM_UPDATE_INTERVAL_US;
+    } else if (currentState == RECORDER_EDITING) {
+        // Update display if there's a pending update
+        updateDisplayIfNeeded();
     }
 
     return DEFAULT_TICK_INTERVAL_US;
@@ -94,35 +97,44 @@ void RecorderScreen::handleEvent(Controls::ButtonEvent event) {
         if (currentState == RECORDER_EDITING) {
             // MIDI Knob 5: Set start position (encoder + button1)
             if (event.button1Held && !event.button2Held && !event.button3Held) {
-                // Ensure we're editing the start position
-                // WaveformSelector tracks which side - we may need to switch
                 _waveformSelector.ensureEditingStart();
                 _waveformSelector.updateSelection(event.encoderValue);
-                _waveformSelector.draw();
-                _screen->display();
+                _needsDisplayUpdate = true;
             }
             // MIDI Knob 6: Set end position (encoder + button2)
             else if (event.button2Held && !event.button1Held && !event.button3Held) {
-                // Ensure we're editing the end position
                 _waveformSelector.ensureEditingEnd();
                 _waveformSelector.updateSelection(event.encoderValue);
-                _waveformSelector.draw();
-                _screen->display();
+                _needsDisplayUpdate = true;
             }
             // MIDI Knob 7: Zoom (encoder + button3)
             else if (event.button3Held && !event.button1Held && !event.button2Held) {
                 _waveformSelector.zoom(event.encoderValue);
-                _waveformSelector.draw();
-                _screen->display();
+                _needsDisplayUpdate = true;
             }
             // MIDI Knob 8 or physical encoder: Update selection
             else if (!event.button1Held && !event.button2Held &&
                      !event.button3Held) {
                 _waveformSelector.updateSelection(event.encoderValue);
-                _waveformSelector.draw();
-                _screen->display();
+                _needsDisplayUpdate = true;
             }
+
+            // Rate-limited display update
+            updateDisplayIfNeeded();
         }
+    }
+}
+
+void RecorderScreen::updateDisplayIfNeeded() {
+    unsigned long currentTime = millis();
+
+    // Check if we need to update and enough time has passed
+    if (_needsDisplayUpdate &&
+        (currentTime - _lastDisplayUpdate >= DISPLAY_UPDATE_INTERVAL_MS)) {
+        _waveformSelector.draw();
+        _screen->display();
+        _lastDisplayUpdate = currentTime;
+        _needsDisplayUpdate = false;
     }
 }
 
