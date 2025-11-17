@@ -170,7 +170,13 @@ MidiAction MidiMappings::mapHomeContext(
         // Knob 1 controls menu navigation (like physical encoder)
         uint8_t currentValue = midiEvent.getCCValue();
         uint8_t lastValue = lastCCValues[midiEvent.getCCNumber()];
-        lastCCValues[midiEvent.getCCNumber()] = currentValue;
+
+        // Reset tracking when at limits to enable infinite rotation
+        if (currentValue == 0 || currentValue == 127) {
+            lastCCValues[midiEvent.getCCNumber()] = 64;  // Reset to middle
+        } else {
+            lastCCValues[midiEvent.getCCNumber()] = currentValue;
+        }
 
         if (lastValue != 0) {  // Ignore first value (initialization)
             if (knobIndex == 0) {  // Knob 1 (CC 70)
@@ -222,7 +228,13 @@ MidiAction MidiMappings::mapRecorderContext(
         // Knobs control recording and editing parameters
         uint8_t currentValue = midiEvent.getCCValue();
         uint8_t lastValue = lastCCValues[midiEvent.getCCNumber()];
-        lastCCValues[midiEvent.getCCNumber()] = currentValue;
+
+        // Reset tracking when at limits to enable infinite rotation
+        if (currentValue == 0 || currentValue == 127) {
+            lastCCValues[midiEvent.getCCNumber()] = 64;  // Reset to middle
+        } else {
+            lastCCValues[midiEvent.getCCNumber()] = currentValue;
+        }
 
         if (lastValue != 0) {  // Ignore first value
             int8_t direction = calculateEncoderDirection(currentValue, lastValue);
@@ -303,7 +315,13 @@ MidiAction MidiMappings::mapLiveContext(
     } else if (midiEvent.isCC() && knobIndex >= 0) {
         uint8_t currentValue = midiEvent.getCCValue();
         uint8_t lastValue = lastCCValues[midiEvent.getCCNumber()];
-        lastCCValues[midiEvent.getCCNumber()] = currentValue;
+
+        // Reset tracking when at limits to enable infinite rotation
+        if (currentValue == 0 || currentValue == 127) {
+            lastCCValues[midiEvent.getCCNumber()] = 64;  // Reset to middle
+        } else {
+            lastCCValues[midiEvent.getCCNumber()] = currentValue;
+        }
 
         if (lastValue != 0) {
             if (knobIndex == 0) {
@@ -338,25 +356,43 @@ int8_t MidiMappings::getKnobIndex(uint8_t ccNumber) {
 
 int8_t MidiMappings::calculateEncoderDirection(uint8_t currentValue,
                                                  uint8_t lastValue) {
-    // Handle wrap-around for infinite rotation
-    // CC values are 0-127, detect when encoder wraps around
-    const uint8_t WRAP_THRESHOLD = 32;  // Threshold to detect wrap vs normal movement
+    // Handle infinite rotation by resetting tracking at limits
+    // CC values are 0-127, when we hit the limits we reset to center
+    const uint8_t LIMIT_MIN = 0;
+    const uint8_t LIMIT_MAX = 127;
+    const uint8_t RESET_VALUE = 64;  // Middle value
+    const uint8_t EDGE_THRESHOLD = 5;  // Close to edge detection
 
     int16_t delta = currentValue - lastValue;
 
-    // Detect wrap from high to low (clockwise wrap)
-    // If last was >95 and current is <32, encoder wrapped forward
-    if (lastValue > (127 - WRAP_THRESHOLD) && currentValue < WRAP_THRESHOLD) {
-        return 1;  // Continue forward
+    // If we're at or near the minimum limit
+    if (currentValue <= EDGE_THRESHOLD && lastValue <= EDGE_THRESHOLD) {
+        // Both at minimum - check if we just turned from higher value
+        if (delta < 0) {
+            // Still trying to go lower, allow it
+            return -1;
+        } else if (delta > 0) {
+            // Turning back up from minimum
+            return 1;
+        }
+        return 0;  // No change
     }
 
-    // Detect wrap from low to high (counter-clockwise wrap)
-    // If last was <32 and current is >95, encoder wrapped backward
-    if (lastValue < WRAP_THRESHOLD && currentValue > (127 - WRAP_THRESHOLD)) {
-        return -1;  // Continue backward
+    // If we're at or near the maximum limit
+    if (currentValue >= (LIMIT_MAX - EDGE_THRESHOLD) &&
+        lastValue >= (LIMIT_MAX - EDGE_THRESHOLD)) {
+        // Both at maximum - check direction
+        if (delta > 0) {
+            // Still trying to go higher, allow it
+            return 1;
+        } else if (delta < 0) {
+            // Turning back down from maximum
+            return -1;
+        }
+        return 0;  // No change
     }
 
-    // Normal movement (no wrap)
+    // Normal movement (not at limits)
     if (delta > 0) {
         return 1;   // Forward
     } else if (delta < 0) {
