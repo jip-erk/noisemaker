@@ -35,6 +35,7 @@ class RecorderScreen {
     void continueRecording();
     void stopRecording();
     void updateVolumeBar();
+    void saveBinaryDataFile(const String& fileName, uint32_t startPos, uint32_t endPos);
 
     enum RecorderState {
         RECORDER_HOME = 0,

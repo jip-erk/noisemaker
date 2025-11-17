@@ -55,6 +55,13 @@ void RecorderScreen::setAudioResources(AudioResources* audioResources) {
 
 void RecorderScreen::handleEvent(Controls::ButtonEvent event) {
     if (event.buttonId == 1 && event.state == PRESSED) {
+        // If in editing mode, save the .bdf file with start/end positions
+        if (currentState == RECORDER_EDITING) {
+            uint32_t startPos = _waveformSelector.getSelectStart();
+            uint32_t endPos = _waveformSelector.getSelectEnd();
+            saveBinaryDataFile(_recordedFileName, startPos, endPos);
+        }
+
         if (_navCallback) {
             _navCallback(AppContext::HOME);
             return;
@@ -222,4 +229,36 @@ void RecorderScreen::updateVolumeBar() {
 
     _volumeBar.drawVolumeBar();
     _screen->display();
+}
+
+void RecorderScreen::saveBinaryDataFile(const String& fileName, uint32_t startPos, uint32_t endPos) {
+    // Create .bdf file path (filename.wav.bdf)
+    String bdfPath = getFilePath(fileName) + ".bdf";
+
+    // Open file for writing
+    File bdfFile = SD.open(bdfPath.c_str(), FILE_WRITE);
+    if (!bdfFile) {
+        Serial.println("Failed to create .bdf file: " + bdfPath);
+        return;
+    }
+
+    // Write start position (4 bytes, little-endian)
+    bdfFile.write((uint8_t)(startPos & 0xFF));
+    bdfFile.write((uint8_t)((startPos >> 8) & 0xFF));
+    bdfFile.write((uint8_t)((startPos >> 16) & 0xFF));
+    bdfFile.write((uint8_t)((startPos >> 24) & 0xFF));
+
+    // Write end position (4 bytes, little-endian)
+    bdfFile.write((uint8_t)(endPos & 0xFF));
+    bdfFile.write((uint8_t)((endPos >> 8) & 0xFF));
+    bdfFile.write((uint8_t)((endPos >> 16) & 0xFF));
+    bdfFile.write((uint8_t)((endPos >> 24) & 0xFF));
+
+    bdfFile.close();
+
+    Serial.println("Saved .bdf file: " + bdfPath);
+    Serial.print("Start: ");
+    Serial.print(startPos);
+    Serial.print(", End: ");
+    Serial.println(endPos);
 }
