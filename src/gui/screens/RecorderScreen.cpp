@@ -1,12 +1,16 @@
 #include "RecorderScreen.h"
 
-RecorderScreen::RecorderScreen(Controls *keyboard, Screen *screen,
+RecorderScreen::RecorderScreen(Controls* keyboard, Screen* screen,
                                NavigationCallback navCallback) {
     _keyboard = keyboard;
     _screen = screen;
     _navCallback = navCallback;
-    _audioResources = nullptr; // Will be set externally
-    _wavWriter = nullptr; // Will be created when audio resources are set
+    _audioResources = nullptr;
+    _wavWriter = nullptr;
+    _header = TextHeader(screen);
+    _volumeBar = VolumeBar(screen, 68, 0, 60, 10);
+    _waveform = Waveform(screen, 0, 15, 128, 47);
+    _waveformSelector = WaveformSelector(&_waveform);
 }
 
 RecorderScreen::~RecorderScreen() {
@@ -16,12 +20,26 @@ RecorderScreen::~RecorderScreen() {
     }
 }
 
+long RecorderScreen::receiveTimerTick() {
+    if (currentState == RECORDER_HOME) {
+        updateVolumeBar();
+        return 70000;
+    } else if (currentState == RECORDER_RECORDING) {
+        updateWaveform();
+        return 500000;
+    }
+
+    return 1000000;
+}
+
 void RecorderScreen::refresh() {
     currentState = RECORDER_HOME;
     _screen->clear();
-    _screen->drawStr(0, 8, "Recorder");
+    _screen->setHeaderFont();
+    _screen->drawStr(0, 10, "RECORDER");
+    _screen->setNormalFont();
     _screen->drawStr(0, 20, "Click to start");
-    drawVolumeBar();
+    _volumeBar.drawVolumeBar();
     _screen->display();
 }
 
@@ -41,38 +59,81 @@ void RecorderScreen::handleEvent(Controls::ButtonEvent event) {
 
     if (event.buttonId == 2 && event.state == PRESSED) {
         if (currentState == RECORDER_HOME) {
-            startWaitingForSound();
-        } else if (currentState == RECORDER_WAITING_FOR_SOUND) {
-            // Cancel waiting and return to home
-            stopBuffering(); // Stop buffering when canceling
-            currentState = RECORDER_HOME;
-            refresh();
+            showRecorderScreen();
         } else if (currentState == RECORDER_RECORDING) {
-            // Stop recording on click while recording
             stopRecording();
-            refresh();
+        } else if (currentState == RECORDER_EDITING) {
+            String path = getFilePath(_recordedFileName);
+            const int WAV_HEADER_SIZE = 44;
+            uint32_t startByte =
+                _waveformSelector.getSelectStart() * 2 + WAV_HEADER_SIZE;
+            uint32_t endByte =
+                _waveformSelector.getSelectEnd() * 2 + WAV_HEADER_SIZE;
+            _audioResources->playWav1.play(path.c_str(), startByte, endByte,
+                                           1.0);
+
+            // refresh();
         }
         return;
     }
 
-    // Handle encoder for threshold adjustment (only on home screen)
-    if (event.buttonId == 0 && currentState == RECORDER_HOME) {
-        handleEncoder(event.encoderValue);
-        return;
+    if (event.buttonId == 3 && event.state == PRESSED) {
+        if (!event.button1Held && !event.button2Held) {
+            if (currentState == RECORDER_EDITING) {
+                _waveformSelector.changeSide();
+            }
+        }
+    }
+
+    // Encoder events
+    if (event.buttonId == 0 && event.encoderValue != 0) {
+        // Button 3 + Encoder = Zoom
+        if (event.button3Held && !event.button1Held && !event.button2Held) {
+            _waveformSelector.zoom(event.encoderValue);
+            _waveformSelector.draw();
+            _screen->display();
+        }
+        // Encoder alone = Update selection
+        else if (!event.button1Held && !event.button2Held &&
+                 !event.button3Held) {
+            if (currentState == RECORDER_EDITING) {
+                _waveformSelector.updateSelection(event.encoderValue);
+                _waveformSelector.draw();
+                _screen->display();
+            }
+        }
     }
 }
 
 void RecorderScreen::showRecorderScreen() {
+    currentState = RECORDER_RECORDING;
     _screen->clear();
-    _screen->drawStr(0, 8, "Recorder");
-    _screen->drawBox(0, 12, 128, 38);
-    _screen->getDisplay()->setFont(u8g2_font_micro_tr);
-    _screen->drawStr(0, 60, "Recording");
-    _screen->drawStr(52, 60, "00:00");
-    _screen->getDisplay()->setFont(u8g2_font_ncenB08_tr);
+    _screen->setHeaderFont();
+    _screen->drawStr(0, 10, "RECORDER");
+    _screen->setNormalFont();
+    _screen->setNormalFont();
+
+    _waveform.clear();
+    _waveform.drawWaveform();
+
     _screen->display();
 
     startRecording();
+}
+
+void RecorderScreen::showEditScreen() {
+    currentState = RECORDER_EDITING;
+    Serial.println("Showing edit screen for file: " + _recordedFileName);
+    _screen->clear();
+    _screen->drawStr(0, 10, _recordedFileName.c_str());
+
+    _waveform.clear();
+    String path = getFilePath(_recordedFileName);
+    _waveform.loadWaveformFile(path.c_str(), 100);
+    _waveform.drawCachedWaveform(0, 0);
+    _waveformSelector = WaveformSelector(&_waveform);
+    _waveformSelector.draw();
+    _screen->display();
 }
 
 void RecorderScreen::startRecording() {
@@ -81,21 +142,46 @@ void RecorderScreen::startRecording() {
         return;
     }
 
+    _audioResources->unmuteInput();
+
+    _recordedFileName = "";
+
     // Create RECORDINGS folder if it doesn't exist
     if (!SD.exists("/RECORDINGS")) {
         SD.mkdir("/RECORDINGS");
     }
 
-    // Generate unique filename with timestamp
-    String filename = "/RECORDINGS/RECORD_" + String(millis()) + ".WAV";
+    String name = gen.generateAudioFilename();
 
     // Start WAV recording
-    if (_wavWriter->open(filename.c_str(), 44100, 1)) {
-        // Write the buffered audio first (the audio before threshold was reached)
+    String path = getFilePath(name);
+    if (_wavWriter->open(path.c_str(), 44100, 1)) {
+        // Write the buffered audio first (the audio before threshold was
+        // reached)
         writeBufferedAudioToFile();
-        
-        currentState = RECORDER_RECORDING;
+        _recordedFileName = name;
         _recordingStartTime = millis();
+    }
+}
+
+void RecorderScreen::updateWaveform() {
+    if (!_wavWriter || !_wavWriter->isWriting()) {
+        return;
+    }
+
+    size_t sampleCount;
+    const int16_t* samples = _wavWriter->getAccumulatedBuffer(sampleCount);
+
+    if (sampleCount > 0) {
+        // Add all accumulated audio data to waveform
+        _waveform.addAudioData(samples, sampleCount);
+
+        // Clear the accumulated buffer for next update cycle
+        _wavWriter->clearAccumulatedBuffer();
+
+        // Draw the updated waveform
+        _waveform.drawWaveform();
+        _screen->display();
     }
 }
 
@@ -104,8 +190,7 @@ void RecorderScreen::continueRecording() {
     if (!_wavWriter || !_wavWriter->isWriting()) {
         return;
     }
-
-    // Update the WAV file with new audio data
+    // Update the WAV file
     _wavWriter->update();
 }
 
@@ -114,187 +199,37 @@ void RecorderScreen::stopRecording() {
         return;
     }
 
+    _audioResources->muteInput();
+
     // Close the WAV file
     if (_wavWriter->close()) {
-        currentState = RECORDER_HOME;
-    }
-}
-
-void RecorderScreen::startWaitingForSound() {
-    currentState = RECORDER_WAITING_FOR_SOUND;
-    _waitingStartTime = millis();
-    
-    // Start buffering audio immediately
-    startBuffering();
-    
-    _screen->clear();
-    _screen->drawStr(0, 8, "Recorder");
-    _screen->drawStr(0, 35, "Waiting for sound...");
-    _screen->drawStr(0, 50, "Click to cancel");
-    _screen->display();
-}
-
-void RecorderScreen::checkVolumeThreshold() {
-    if (currentState != RECORDER_WAITING_FOR_SOUND || !_audioResources) {
-        return;
-    }
-
-    // Process audio buffer continuously
-    processAudioBuffer();
-
-    // Check if peak analyzer has new data
-    if (_audioResources->peak1.available()) {
-        float peakLevel = _audioResources->peak1.read();
-        
-        // Update display with current volume level
-        _screen->clear();
-        _screen->drawStr(0, 8, "Recorder");
-        _screen->drawStr(0, 35, "Waiting for sound...");
-        _screen->drawStr(0, 50, "Click to cancel");
-        
-        // Show current volume level
-        String volumeText = "Vol: " + String(peakLevel * 100, 1) + "%";
-        _screen->drawStr(0, 25, volumeText.c_str());
-        
-        // Show threshold line
-        String thresholdText = "Need: " + String(_volumeThreshold * 100, 1) + "%";
-        _screen->drawStr(60, 25, thresholdText.c_str());
-        
-        _screen->display();
-        
-        // If volume exceeds threshold, start recording
-        if (peakLevel > _volumeThreshold) {
-            currentState = RECORDER_RECORDING;
-            stopBuffering(); // Stop buffering and start writing to file
-            showRecorderScreen();
-        }
-    }
-}
-
-void RecorderScreen::setVolumeThreshold(float threshold) {
-    if (threshold >= 0.0 && threshold <= 1.0) {
-        _volumeThreshold = threshold;
-    }
-}
-
-void RecorderScreen::drawVolumeBar() {
-    if (!_audioResources || currentState != RECORDER_HOME) return;
-    
-    // Small volume bar - 32x8 pixels with border
-    int barX = 48;  // Centered on 128px screen
-    int barY = 30;
-    int barWidth = 32;
-    int barHeight = 8;
-    
-    // Clear the volume bar area first
-    _screen->getDisplay()->setDrawColor(0);
-    _screen->getDisplay()->drawBox(barX, barY, barWidth, barHeight);
-    
-    // Draw border
-    _screen->getDisplay()->setDrawColor(1);
-    _screen->getDisplay()->drawFrame(barX, barY, barWidth, barHeight);
-    
-    // Calculate current volume bar width
-    int currentVolumeWidth = (int)(_currentVolume * (barWidth - 2));
-    if (currentVolumeWidth > (barWidth - 2)) currentVolumeWidth = barWidth - 2;
-    
-    // Draw current volume fill
-    if (currentVolumeWidth > 0) {
-        _screen->getDisplay()->setDrawColor(1);
-        _screen->getDisplay()->drawBox(barX + 1, barY + 1, currentVolumeWidth, barHeight - 2);
-    }
-    
-    // Draw threshold line
-    int thresholdX = (int)(_volumeThreshold * (barWidth - 2));
-    if (thresholdX >= 0 && thresholdX < (barWidth - 2)) {
-        _screen->getDisplay()->drawVLine(barX + 1 + thresholdX, barY + 1, barHeight - 2);
+        showEditScreen();
     }
 }
 
 void RecorderScreen::updateVolumeBar() {
     if (!_audioResources || currentState != RECORDER_HOME) return;
-    
-    // Update current volume from audio analyzer
+
     if (_audioResources->peak1.available()) {
-        float newVolume = _audioResources->peak1.read();
-        
-        // Only update if volume changed significantly to avoid flicker
-        static float lastVolume = -1.0;
-        if (abs(newVolume - lastVolume) > 0.02) { // Increased threshold to reduce updates
-            _currentVolume = newVolume;
-            lastVolume = newVolume;
-            
-            // Only redraw the volume bar area, not the entire screen
-            drawVolumeBar();
-            _screen->display();
-        }
+        float left = _audioResources->peak1.read();
+        _volumeBar.setLeftVolume(left);
     }
-}
 
-void RecorderScreen::handleEncoder(int direction) {
-    if (direction == 0) return;
-    
-    // Adjust threshold based on encoder direction
-    float step = 0.01; // 1% steps
-    if (direction > 0) {
-        _volumeThreshold += step;
-    } else {
-        _volumeThreshold -= step;
+    if (_audioResources->peak2.available()) {
+        float right = _audioResources->peak2.read();
+        _volumeBar.setRightVolume(right);
     }
-    
-    // Clamp threshold between 0 and 1
-    if (_volumeThreshold < 0.0) _volumeThreshold = 0.0;
-    if (_volumeThreshold > 1.0) _volumeThreshold = 1.0;
-    
-    // Only redraw the volume bar to show updated threshold
-    drawVolumeBar();
+
+    _volumeBar.drawVolumeBar();
     _screen->display();
-}
-
-void RecorderScreen::startBuffering() {
-    if (!_audioResources) return;
-    
-    _isBuffering = true;
-    _bufferWriteIndex = 0;
-    _bufferFull = false;
-    
-    // Clear the buffer
-    memset(_audioBuffer, 0, sizeof(_audioBuffer));
-    
-    // Start the audio queue
-    _audioResources->queue1.begin();
-}
-
-void RecorderScreen::stopBuffering() {
-    _isBuffering = false;
-    _audioResources->queue1.end();
-}
-
-void RecorderScreen::processAudioBuffer() {
-    if (!_isBuffering || !_audioResources) return;
-    
-    // Process available audio data
-    if (_audioResources->queue1.available() >= 2) {
-        // Get audio data from queue
-        memcpy(_audioBuffer + _bufferWriteIndex, _audioResources->queue1.readBuffer(), 256);
-        _audioResources->queue1.freeBuffer();
-        
-        _bufferWriteIndex += 128; // 256 bytes = 128 samples (16-bit)
-        
-        // Wrap around if buffer is full
-        if (_bufferWriteIndex >= BUFFER_SIZE) {
-            _bufferWriteIndex = 0;
-            _bufferFull = true;
-        }
-    }
 }
 
 void RecorderScreen::writeBufferedAudioToFile() {
     if (!_wavWriter || !_wavWriter->isWriting()) return;
-    
+
     // Write the buffered audio to the file
     int samplesToWrite = _bufferFull ? BUFFER_SIZE : _bufferWriteIndex;
-    
+
     for (int i = 0; i < samplesToWrite; i += 128) {
         int samples = min(128, samplesToWrite - i);
         _wavWriter->getFile().write((uint8_t*)(_audioBuffer + i), samples * 2);

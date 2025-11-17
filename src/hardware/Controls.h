@@ -3,10 +3,9 @@
 
 #include <Arduino.h>
 #include <Encoder.h>
-#include <OneButton.h>
 
 // Button state enum
-enum ButtonState { NOT_PRESSED = 0, PRESSED = 1, LONG_PRESSED = 2 };
+enum ButtonState { NOT_PRESSED = 0, PRESSED = 1 };
 
 class Controls {
    public:
@@ -25,28 +24,42 @@ class Controls {
         uint8_t buttonId;   // 0 for encoder, 1-3 for buttons
         ButtonState state;  // Button state from enum
         long encoderValue;  // Current encoder value
+
+        bool button1Held;
+        bool button2Held;
+        bool button3Held;
     };
 
     typedef void (*EventCallback)(ButtonEvent);
     void setEventCallback(EventCallback callback);
 
+    // Check if a button is currently pressed
+    bool isDown(uint8_t buttonId);
+
+    bool isComboPressed(uint8_t button1, uint8_t button2);
+    bool isComboPressed(uint8_t button1, uint8_t button2, uint8_t button3);
+
+    uint8_t getButtonMask();
+
    private:
-    OneButton button1;
-    OneButton button2;
-    OneButton button3;
     Encoder encoder;
     long lastEncoderValue;
     EventCallback eventCallback;
 
-    // Static callback handlers
-    static void handleButton1Click();
-    static void handleButton1LongPress();
+    // Button states
+    bool button1State, button2State, button3State;
+    bool button1LastState, button2LastState, button3LastState;
 
-    static void handleButton2Click();
-    static void handleButton2LongPress();
+    // Debounce timing
+    static const unsigned long debounceDelay = 5;  // 5ms debounce
+    unsigned long button1LastDebounceTime, button2LastDebounceTime,
+        button3LastDebounceTime;
 
-    static void handleButton3Click();
-    static void handleButton3LongPress();
+    void handleButton(uint8_t buttonId, uint8_t pin, bool& currentState,
+                      bool& lastState, unsigned long& lastDebounceTime);
+
+    ButtonEvent createEvent(uint8_t buttonId, ButtonState state,
+                            long encoderValue);
 
     // Reference to self for static callbacks
     static Controls* instance;

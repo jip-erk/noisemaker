@@ -12,8 +12,8 @@
 
 #include "gui/Screen.h"
 #include "gui/screens/HomeScreen.h"
-#include "gui/screens/RecorderScreen.h"
 #include "gui/screens/LiveScreen.h"
+#include "gui/screens/RecorderScreen.h"
 #include "hardware/Controls.h"
 #include "helper/AudioResources.h"
 #include "helper/FSIO.h"
@@ -26,6 +26,13 @@
 // reset=*/U8X8_PIN_NONE);
 
 long oldEncoderValue = 0;
+
+// Interval Timer for playback pattern, metronome, etc..
+IntervalTimer globalTickTimer;
+volatile bool ticked = false;
+long globalTickInterval = 1000000;  // intervall in microseconds -> starts at 1s
+long globalTickIntervalNew = 1000000;
+void globalTick();
 
 AppContext currentAppContext;
 AppContext lastAppContext;
@@ -43,17 +50,6 @@ AudioResources audioResources;
 void changeContext(AppContext newContext) {
     lastAppContext = currentAppContext;
     currentAppContext = newContext;
-
-    // Mute/unmute microphone based on context
-    if (currentAppContext == AppContext::LIVE) {
-        // Mute mic input in live context - ALWAYS muted
-        audioResources.mixer1.gain(1, 0.0); // Input channel muted
-        audioResources.mixer1.gain(0, 1.0); // Playback channel active
-    } else {
-        // Unmute mic input in other contexts
-        audioResources.mixer1.gain(1, 1.0); // Input channel active
-        audioResources.mixer1.gain(0, 0.0); // Playback channel muted
-    }
 
     switch (currentAppContext) {
         case AppContext::HOME:
@@ -101,7 +97,8 @@ void setup(void) {
     delay(100);  // Give time for audio shield to initialize
     audioResources.audioShield.inputSelect(AUDIO_INPUT_MIC);
     audioResources.audioShield.micGain(10);
-    // USB audio doesn't use audioShield volume control - volume controlled by host
+    // USB audio doesn't use audioShield volume control - volume controlled by
+    // host
 
     SPI.setMOSI(SDCARD_MOSI_PIN);
     SPI.setSCK(SDCARD_SCK_PIN);
@@ -117,6 +114,8 @@ void setup(void) {
     screen.begin();
     controls.setEventCallback(handleControlEvent);
 
+    globalTickTimer.begin(globalTick, globalTickInterval);
+
     // Set up audio resources for recorder and live screen
     recorderContext.setAudioResources(&audioResources);
     liveContext.setAudioResources(&audioResources);
@@ -127,28 +126,48 @@ void setup(void) {
     // u8g2.begin();
 }
 
-void loop(void) {
-    // Only update recorder context when it's the active context
-    if (currentAppContext == AppContext::RECORDER) {
-        if (recorderContext.currentState == recorderContext.RECORDER_RECORDING)
-            recorderContext.continueRecording();
-        else if (recorderContext.currentState ==
-                 recorderContext.RECORDER_WAITING_FOR_SOUND)
-            recorderContext.checkVolumeThreshold();
-        else if (recorderContext.currentState ==
-                 recorderContext.RECORDER_HOME) {
-            // Update volume bar on home screen
-            recorderContext.updateVolumeBar();
-        }
+void globalTick() { ticked = true; }
+
+void updateTickInterval(long newInterval) {
+    // Only update if interval has actually changed and is valid
+    if (newInterval > 0 && newInterval != globalTickInterval) {
+        noInterrupts();  // Disable interrupts while updating timer
+        globalTickInterval = newInterval;
+        globalTickTimer.update(globalTickInterval);
+        interrupts();  // Re-enable interrupts
     }
-    
-    // Update live context when it's the active context
-    if (currentAppContext == AppContext::LIVE) {
-        if (liveContext.currentState == liveContext.LIVE_PLAYING || 
-            liveContext.currentState == liveContext.LIVE_PAUSED) {
-            liveContext.updatePlayback();
-        }
+}
+
+void sendTickToActiveContext() {
+    switch (currentAppContext) {
+        case AppContext::RECORDER:
+            globalTickIntervalNew = recorderContext.receiveTimerTick();
+            updateTickInterval(globalTickIntervalNew);
+            break;
+        default:
+            break;
+    }
+}
+
+void loop(void) {
+    if (recorderContext.currentState == recorderContext.RECORDER_RECORDING)
+        recorderContext.continueRecording();
+
+    if (ticked) {
+        ticked = false;
+        sendTickToActiveContext();
     }
 
     controls.tick();
+
+    // while (usbMIDI.read()) {
+    //     Serial.print("MIDI received - Channel: ");
+    //     Serial.print(usbMIDI.getChannel());
+    //     Serial.print(" | Type: ");
+    //     Serial.print(usbMIDI.getType());
+    //     Serial.print(" | Data1: ");
+    //     Serial.print(usbMIDI.getData1());
+    //     Serial.print(" | Data2: ");
+    //     Serial.println(usbMIDI.getData2());
+    // }
 }
