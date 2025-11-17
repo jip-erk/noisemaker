@@ -24,15 +24,12 @@ class Waveform {
     void drawSelection(int selectStart, int selectEnd, int startSample,
                        int endSample);
     void drawWaveform();
-
-    void drawWaveform(int startSample, int endSample);
     int getTotalSamples() const { return _totalSamples; }
 
    private:
     Screen* _screen;
     int _x = 0, _y = 0;
     int _width = 128, _height = 47;
-    int16_t* _samples = nullptr;
     int _totalSamples = 0;
 
     int16_t* _minCache = nullptr;
@@ -43,7 +40,6 @@ class Waveform {
     void freeCacheMemory();
 
     int _waveformData[MAX_WAVEFORM_POINTS];
-    int _waveformLength = 0;
     int _writeIndex = 0;
 };
 

@@ -68,11 +68,6 @@ class NameGenerator {
         return result;
     }
 
-    // Generate with counter for uniqueness
-    String generateWithCounter(unsigned long counter) {
-        return generate() + "_" + String(counter);
-    }
-
     // Generate a complete audio filename with extension
     String generateAudioFilename() { return generate(); }
 

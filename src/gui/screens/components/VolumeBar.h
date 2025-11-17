@@ -22,7 +22,6 @@ class VolumeBar {
     int _y = 0;
     int _width = 100;
     int _height = 10;
-    int _threshold = 50;
     float _leftVolume = 0.0;
     float _rightVolume = 0.0;
 };

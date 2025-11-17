@@ -1,5 +1,10 @@
 #include "RecorderScreen.h"
 
+// Timer interval constants (in microseconds)
+static const long VOLUME_UPDATE_INTERVAL_US = 70000;     // ~14 Hz
+static const long WAVEFORM_UPDATE_INTERVAL_US = 500000;  // 2 Hz
+static const long DEFAULT_TICK_INTERVAL_US = 1000000;    // 1 Hz
+
 RecorderScreen::RecorderScreen(Controls* keyboard, Screen* screen,
                                NavigationCallback navCallback) {
     _keyboard = keyboard;
@@ -7,7 +12,6 @@ RecorderScreen::RecorderScreen(Controls* keyboard, Screen* screen,
     _navCallback = navCallback;
     _audioResources = nullptr;
     _wavWriter = nullptr;
-    _header = TextHeader(screen);
     _volumeBar = VolumeBar(screen, 68, 0, 60, 10);
     _waveform = Waveform(screen, 0, 15, 128, 47);
     _waveformSelector = WaveformSelector(&_waveform);
@@ -23,13 +27,13 @@ RecorderScreen::~RecorderScreen() {
 long RecorderScreen::receiveTimerTick() {
     if (currentState == RECORDER_HOME) {
         updateVolumeBar();
-        return 70000;
+        return VOLUME_UPDATE_INTERVAL_US;
     } else if (currentState == RECORDER_RECORDING) {
         updateWaveform();
-        return 500000;
+        return WAVEFORM_UPDATE_INTERVAL_US;
     }
 
-    return 1000000;
+    return DEFAULT_TICK_INTERVAL_US;
 }
 
 void RecorderScreen::refresh() {
@@ -111,7 +115,6 @@ void RecorderScreen::showRecorderScreen() {
     _screen->setHeaderFont();
     _screen->drawStr(0, 10, "RECORDER");
     _screen->setNormalFont();
-    _screen->setNormalFont();
 
     _waveform.clear();
     _waveform.drawWaveform();
@@ -156,9 +159,6 @@ void RecorderScreen::startRecording() {
     // Start WAV recording
     String path = getFilePath(name);
     if (_wavWriter->open(path.c_str(), 44100, 1)) {
-        // Write the buffered audio first (the audio before threshold was
-        // reached)
-        writeBufferedAudioToFile();
         _recordedFileName = name;
         _recordingStartTime = millis();
     }
@@ -222,16 +222,4 @@ void RecorderScreen::updateVolumeBar() {
 
     _volumeBar.drawVolumeBar();
     _screen->display();
-}
-
-void RecorderScreen::writeBufferedAudioToFile() {
-    if (!_wavWriter || !_wavWriter->isWriting()) return;
-
-    // Write the buffered audio to the file
-    int samplesToWrite = _bufferFull ? BUFFER_SIZE : _bufferWriteIndex;
-
-    for (int i = 0; i < samplesToWrite; i += 128) {
-        int samples = min(128, samplesToWrite - i);
-        _wavWriter->getFile().write((uint8_t*)(_audioBuffer + i), samples * 2);
-    }
 }
