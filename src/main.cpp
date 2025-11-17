@@ -16,16 +16,15 @@
 #include "gui/screens/RecorderScreen.h"
 #include "hardware/Controls.h"
 #include "helper/AudioResources.h"
-#include "helper/FSIO.h"
 
 #define SDCARD_CS_PIN 10
 #define SDCARD_MOSI_PIN 11
 #define SDCARD_SCK_PIN 13
-// U8g2 constructor for SH1106 128x64 I2C display using Wire2
-// U8G2_SH1106_128X64_NONAME_F_2ND_HW_I2C u8g2(U8G2_R0, /*
-// reset=*/U8X8_PIN_NONE);
 
-long oldEncoderValue = 0;
+// Audio configuration constants
+#define AUDIO_MEMORY_BLOCKS 100
+#define AUDIO_SHIELD_INIT_DELAY_MS 100
+#define DEFAULT_MIC_GAIN 10
 
 // Interval Timer for playback pattern, metronome, etc..
 IntervalTimer globalTickTimer;
@@ -66,7 +65,6 @@ void changeContext(AppContext newContext) {
     }
 }
 
-// AudioResources audioResources;
 void sendEventToActiveContext(Controls::ButtonEvent event) {
     switch (currentAppContext) {
         case AppContext::HOME:
@@ -91,12 +89,12 @@ void setup(void) {
     Serial.begin(9600);
 
     AudioMemoryUsageMaxReset();
-    AudioMemory(100);
+    AudioMemory(AUDIO_MEMORY_BLOCKS);
 
     audioResources.audioShield.enable();
-    delay(100);  // Give time for audio shield to initialize
+    delay(AUDIO_SHIELD_INIT_DELAY_MS);
     audioResources.audioShield.inputSelect(AUDIO_INPUT_MIC);
-    audioResources.audioShield.micGain(10);
+    audioResources.audioShield.micGain(DEFAULT_MIC_GAIN);
     // USB audio doesn't use audioShield volume control - volume controlled by
     // host
 
@@ -122,8 +120,6 @@ void setup(void) {
 
     currentAppContext = AppContext::HOME;
     homeContext.refresh();
-    // Wire2.begin();
-    // u8g2.begin();
 }
 
 void globalTick() { ticked = true; }
@@ -159,15 +155,4 @@ void loop(void) {
     }
 
     controls.tick();
-
-    // while (usbMIDI.read()) {
-    //     Serial.print("MIDI received - Channel: ");
-    //     Serial.print(usbMIDI.getChannel());
-    //     Serial.print(" | Type: ");
-    //     Serial.print(usbMIDI.getType());
-    //     Serial.print(" | Data1: ");
-    //     Serial.print(usbMIDI.getData1());
-    //     Serial.print(" | Data2: ");
-    //     Serial.println(usbMIDI.getData2());
-    // }
 }

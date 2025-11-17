@@ -15,16 +15,6 @@ class Screen {
 
     void drawItemList(int x, int y, const char* items[], int selectedIndex);
     void drawBox(int x, int y, int w, int h);
-
-    typedef struct area {
-        int x1;
-        int y1;
-        int x2;
-        int y2;
-    } Area;
-
-    Area AREA_SCREEN = {0, 0, 128, 64};  // Fullscreen
-
     void drawStr(int x, int y, const char* text);
     void setHeaderFont();
     void setNormalFont();

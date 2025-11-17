@@ -20,13 +20,9 @@ class HomeScreen {
     
    private:
     NavigationCallback _navCallback;
-
-    enum Components { NONE = 0, SUPPORTER = 1, SONGSELECTOR = 2 };
-
     Controls *_keyboard;
     Screen *_screen;
     int _selectedIndex = 0;
-    Components _activeComponent = NONE;
 };
 
 #endif

@@ -47,7 +47,6 @@ class LiveScreen {
     void playSelectedFile();
     void stopPlayback();
     void drawFileList();
-    void drawPlaybackInfo();
 };
 
 #endif
