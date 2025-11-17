@@ -43,8 +43,10 @@ void RecorderScreen::refresh() {
     _screen->drawStr(0, 10, "RECORDER");
     _screen->setNormalFont();
     _screen->drawStr(0, 20, "Click to start");
+    // Draw empty volume bar structure (will be updated by timer tick)
     _volumeBar.drawVolumeBar();
     _screen->display();
+    // Note: updateVolumeBar() will be called by receiveTimerTick() once audio is ready
 }
 
 void RecorderScreen::setAudioResources(AudioResources* audioResources) {

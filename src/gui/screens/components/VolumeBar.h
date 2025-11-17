@@ -15,7 +15,7 @@ class VolumeBar {
     void setRightVolume(float right);
 
    private:
-    void drawBar(int x, int y, float value);
+    void drawBar(int x, int y, float value, float peakValue);
 
     Screen *_screen;
     int _x = 0;
@@ -24,6 +24,13 @@ class VolumeBar {
     int _height = 10;
     float _leftVolume = 0.0;
     float _rightVolume = 0.0;
+
+    // Peak hold values
+    float _leftPeak = 0.0;
+    float _rightPeak = 0.0;
+    unsigned long _leftPeakTime = 0;
+    unsigned long _rightPeakTime = 0;
+    static const unsigned long PEAK_HOLD_TIME_MS = 1000;  // 1 second
 };
 
 #endif
