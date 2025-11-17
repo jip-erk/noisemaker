@@ -38,8 +38,13 @@ class Waveform {
     int _samplesPerCachePoint = 1;
 
     void freeCacheMemory();
+    void drawWaveformFrame();
+    void drawWaveformBar(int x, int16_t minSample, int16_t maxSample,
+                         float amplificationGain);
 
-    int _waveformData[MAX_WAVEFORM_POINTS];
+    // Live recording waveform data (min/max pairs)
+    int16_t _liveMinData[MAX_WAVEFORM_POINTS];
+    int16_t _liveMaxData[MAX_WAVEFORM_POINTS];
     int _writeIndex = 0;
 };
 

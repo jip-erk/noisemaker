@@ -23,6 +23,46 @@ void Waveform::freeCacheMemory() {
     _cacheSize = 0;
 }
 
+void Waveform::drawWaveformFrame() {
+    if (!_screen) return;
+
+    auto* display = _screen->getDisplay();
+    int centerY = _y + (_height / 2);
+
+    // Clear the area (fill with background color)
+    display->setDrawColor(0);
+    display->drawBox(_x, _y, _width, _height);
+    display->setDrawColor(1);
+
+    // Draw rounded frame border
+    display->drawRFrame(_x, _y, _width, _height, 3);
+
+    // Draw center line
+    display->drawHLine(_x + 1, centerY, _width - 2);
+}
+
+void Waveform::drawWaveformBar(int x, int16_t minSample, int16_t maxSample,
+                                float amplificationGain) {
+    if (!_screen) return;
+
+    auto* display = _screen->getDisplay();
+
+    // Apply amplification
+    int32_t amplifiedMin = (int32_t)(minSample * amplificationGain);
+    int32_t amplifiedMax = (int32_t)(maxSample * amplificationGain);
+
+    // Clamp to int16_t range to prevent overflow
+    amplifiedMin = constrain(amplifiedMin, -32768, 32767);
+    amplifiedMax = constrain(amplifiedMax, -32768, 32767);
+
+    // Map to screen coordinates
+    int yMin = map(amplifiedMax, -32768, 32767, _y + _height - 2, _y + 1);
+    int yMax = map(amplifiedMin, -32768, 32767, _y + _height - 2, _y + 1);
+
+    // Draw vertical line representing the waveform envelope
+    display->drawLine(_x + 1 + x, yMin, _x + 1 + x, yMax);
+}
+
 bool Waveform::loadWaveformFile(const char* fileName, int maxMemoryKB) {
     // Free existing cache
     freeCacheMemory();
@@ -124,21 +164,10 @@ void Waveform::drawCachedWaveform(int startSample, int endSample) {
     if (endSample > _totalSamples) endSample = _totalSamples;
     if (endSample <= startSample) endSample = startSample + 1;
 
-    auto* display = _screen->getDisplay();
-    int centerY = _y + (_height / 2);
     int displayWidth = _width - 2;
-    int viewSamples = endSample - startSample;
 
-    // Clear the area first (fill with background color)
-    display->setDrawColor(0);
-    display->drawBox(_x, _y, _width, _height);
-    display->setDrawColor(1);
-
-    // Draw rounded frame border
-    display->drawRFrame(_x, _y, _width, _height, 3);
-
-    // Draw center line
-    display->drawHLine(_x + 1, centerY, _width - 2);
+    // Draw frame, border, and center line
+    drawWaveformFrame();
 
     // Convert sample positions to cache indices
     int startCacheIdx = startSample / _samplesPerCachePoint;
@@ -195,20 +224,8 @@ void Waveform::drawCachedWaveform(int startSample, int endSample) {
             if (_maxCache[i] > maxSample) maxSample = _maxCache[i];
         }
 
-        // === APPLY AMPLIFICATION ===
-        // Amplify the samples
-        int32_t amplifiedMin = (int32_t)(minSample * amplificationGain);
-        int32_t amplifiedMax = (int32_t)(maxSample * amplificationGain);
-
-        // Clamp to int16_t range to prevent overflow
-        amplifiedMin = constrain(amplifiedMin, -32768, 32767);
-        amplifiedMax = constrain(amplifiedMax, -32768, 32767);
-
-        // Map to screen coordinates
-        int yMin = map(amplifiedMax, -32768, 32767, _y + _height - 2, _y + 1);
-        int yMax = map(amplifiedMin, -32768, 32767, _y + _height - 2, _y + 1);
-
-        display->drawLine(_x + 1 + x, yMin, _x + 1 + x, yMax);
+        // Draw the waveform bar using shared helper
+        drawWaveformBar(x, minSample, maxSample, amplificationGain);
     }
 }
 
@@ -224,7 +241,8 @@ void Waveform::setSize(int width, int height) {
 
 void Waveform::clear() {
     for (int i = 0; i < MAX_WAVEFORM_POINTS; i++) {
-        _waveformData[i] = 0;
+        _liveMinData[i] = 0;
+        _liveMaxData[i] = 0;
     }
     _writeIndex = 0;
 }
@@ -233,26 +251,23 @@ void Waveform::addAudioData(const int16_t* audioBuffer, int bufferSize) {
     if (!audioBuffer || bufferSize == 0) return;
 
     int displayWidth = _width - 2;  // Account for border
-    int maxAmplitude = (_height / 2) - 2;
 
     // Only add data if we haven't filled the display yet
     if (_writeIndex >= displayWidth) return;
 
-    // Get peak value from the entire buffer
-    int16_t peak = 0;
+    // Find min and max values from the entire buffer
+    int16_t minVal = 32767;
+    int16_t maxVal = -32768;
+
     for (int i = 0; i < bufferSize; i++) {
         int16_t sample = audioBuffer[i];
-        if (abs(sample) > abs(peak)) {
-            peak = sample;
-        }
+        if (sample < minVal) minVal = sample;
+        if (sample > maxVal) maxVal = sample;
     }
 
-    // Scale the peak value
-    int scaledSample = (peak * maxAmplitude) / 16384;  // More sensitive scaling
-    scaledSample = constrain(scaledSample, -maxAmplitude, maxAmplitude);
-
-    // Add new sample at the current write position
-    _waveformData[_writeIndex] = scaledSample;
+    // Store min/max values at current write position
+    _liveMinData[_writeIndex] = minVal;
+    _liveMaxData[_writeIndex] = maxVal;
     _writeIndex++;
 }
 
@@ -297,52 +312,26 @@ void Waveform::drawSelection(int selectStart, int selectEnd, int startSample,
 void Waveform::drawWaveform() {
     if (!_screen) return;
 
-    auto* display = _screen->getDisplay();
-    int centerY = _y + (_height / 2);
     int displayWidth = _width - 2;
 
-    // Clear and redraw the waveform data area
-    display->setDrawColor(0);
-    display->drawBox(_x + 1, _y + 1, _width - 2, _height - 2);
-    display->setDrawColor(1);
+    // Draw frame, border, and center line using shared helper
+    drawWaveformFrame();
 
-    display->drawRFrame(_x, _y, _width, _height, 3);
-    // Redraw center line
-    display->drawHLine(_x + 1, centerY, _width - 2);
+    // Amplification gain for live recording (same as cached waveform)
+    float amplificationGain = 3.0;
 
-    // Draw waveform data with envelope style
+    // Draw waveform data using the same rendering logic as cached waveform
     for (int i = 0; i < displayWidth && i < MAX_WAVEFORM_POINTS; i++) {
-        int x = _x + 1 + i;
-        int sampleValue = _waveformData[i];
+        int16_t minSample = _liveMinData[i];
+        int16_t maxSample = _liveMaxData[i];
 
-        if (sampleValue == 0) {
-            // Draw center point for silence
-            display->drawPixel(x, centerY);
-        } else {
-            // Calculate height from center (symmetrical)
-            int height = abs(sampleValue);
-
-            // Ensure we stay within bounds
-            int minY = _y + 1;
-            int maxY = _y + _height - 2;
-            int topY = constrain(centerY - height, minY, maxY);
-            int bottomY = constrain(centerY + height, minY, maxY);
-
-            // Draw symmetrical vertical line from top to bottom (envelope
-            // style)
-            int lineHeight = bottomY - topY;
-            if (lineHeight > 0) {
-                display->drawVLine(x, topY, lineHeight);
-            } else {
-                // Minimum thickness even for quiet audio
-                display->drawVLine(x, centerY - 1, 2);
-            }
-        }
+        // Draw the waveform bar using shared helper
+        drawWaveformBar(i, minSample, maxSample, amplificationGain);
     }
 
-    // Draw current write index indicator line (optional: make it dimmer or
-    // different)
+    // Draw current write index indicator line
     if (_writeIndex < displayWidth) {
+        auto* display = _screen->getDisplay();
         int indicatorX = _x + 1 + _writeIndex;
         display->drawVLine(indicatorX, _y + 1, _height - 2);
     }
