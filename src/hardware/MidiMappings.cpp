@@ -173,11 +173,10 @@ MidiAction MidiMappings::mapHomeContext(
         lastCCValues[midiEvent.getCCNumber()] = currentValue;
 
         if (lastValue != 0) {  // Ignore first value (initialization)
-            int8_t delta = currentValue - lastValue;
-            if (delta != 0) {
-                if (knobIndex == 0) {  // Knob 1 (CC 70)
-                    return MidiAction(MIDI_ACTION_ENCODER, 0,
-                                      (delta > 0) ? 1 : -1);
+            if (knobIndex == 0) {  // Knob 1 (CC 70)
+                int8_t direction = calculateEncoderDirection(currentValue, lastValue);
+                if (direction != 0) {
+                    return MidiAction(MIDI_ACTION_ENCODER, 0, direction);
                 }
             }
         }
@@ -226,10 +225,9 @@ MidiAction MidiMappings::mapRecorderContext(
         lastCCValues[midiEvent.getCCNumber()] = currentValue;
 
         if (lastValue != 0) {  // Ignore first value
-            int8_t delta = currentValue - lastValue;
-            if (delta != 0) {
-                int8_t direction = (delta > 0) ? 1 : -1;
+            int8_t direction = calculateEncoderDirection(currentValue, lastValue);
 
+            if (direction != 0) {
                 switch (knobIndex) {
                     case 0:  // Knob 1 (CC 70): Main navigation
                         return MidiAction(MIDI_ACTION_ENCODER, 0, direction);
@@ -308,10 +306,11 @@ MidiAction MidiMappings::mapLiveContext(
         lastCCValues[midiEvent.getCCNumber()] = currentValue;
 
         if (lastValue != 0) {
-            int8_t delta = currentValue - lastValue;
-            if (delta != 0 && knobIndex == 0) {
-                return MidiAction(MIDI_ACTION_ENCODER, 0,
-                                  (delta > 0) ? 1 : -1);
+            if (knobIndex == 0) {
+                int8_t direction = calculateEncoderDirection(currentValue, lastValue);
+                if (direction != 0) {
+                    return MidiAction(MIDI_ACTION_ENCODER, 0, direction);
+                }
             }
         }
     }
@@ -335,4 +334,34 @@ int8_t MidiMappings::getKnobIndex(uint8_t ccNumber) {
         }
     }
     return -1;  // Not a mapped knob
+}
+
+int8_t MidiMappings::calculateEncoderDirection(uint8_t currentValue,
+                                                 uint8_t lastValue) {
+    // Handle wrap-around for infinite rotation
+    // CC values are 0-127, detect when encoder wraps around
+    const uint8_t WRAP_THRESHOLD = 32;  // Threshold to detect wrap vs normal movement
+
+    int16_t delta = currentValue - lastValue;
+
+    // Detect wrap from high to low (clockwise wrap)
+    // If last was >95 and current is <32, encoder wrapped forward
+    if (lastValue > (127 - WRAP_THRESHOLD) && currentValue < WRAP_THRESHOLD) {
+        return 1;  // Continue forward
+    }
+
+    // Detect wrap from low to high (counter-clockwise wrap)
+    // If last was <32 and current is >95, encoder wrapped backward
+    if (lastValue < WRAP_THRESHOLD && currentValue > (127 - WRAP_THRESHOLD)) {
+        return -1;  // Continue backward
+    }
+
+    // Normal movement (no wrap)
+    if (delta > 0) {
+        return 1;   // Forward
+    } else if (delta < 0) {
+        return -1;  // Backward
+    }
+
+    return 0;  // No movement
 }

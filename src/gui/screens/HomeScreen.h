@@ -23,6 +23,13 @@ class HomeScreen {
     Controls *_keyboard;
     Screen *_screen;
     int _selectedIndex = 0;
+
+    // Rate limiting for display updates
+    unsigned long _lastDisplayUpdate = 0;
+    bool _needsDisplayUpdate = false;
+    static const unsigned long DISPLAY_UPDATE_INTERVAL_MS = 50;  // 20 Hz max
+
+    void updateDisplayIfNeeded();
 };
 
 #endif

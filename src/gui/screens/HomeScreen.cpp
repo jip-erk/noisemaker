@@ -23,6 +23,8 @@ void HomeScreen::handleEvent(Controls::ButtonEvent event) {
     if (event.buttonId == 0) {
         _selectedIndex += event.encoderValue;
         _selectedIndex = constrain(_selectedIndex, 0, itemCount - 1);
+        _needsDisplayUpdate = true;
+        updateDisplayIfNeeded();
     } else if (event.buttonId == 2 &&
                event.state == PRESSED) {  // Button 1 - Select
         if (_navCallback) {
@@ -31,7 +33,20 @@ void HomeScreen::handleEvent(Controls::ButtonEvent event) {
             _navCallback(targetContext);
             return;
         }
+    } else if (event.buttonId == 1 || event.buttonId == 2 || event.buttonId == 3) {
+        // Button press - update immediately
+        refresh();
     }
+}
 
-    refresh();
+void HomeScreen::updateDisplayIfNeeded() {
+    unsigned long currentTime = millis();
+
+    // Check if we need to update and enough time has passed
+    if (_needsDisplayUpdate &&
+        (currentTime - _lastDisplayUpdate >= DISPLAY_UPDATE_INTERVAL_MS)) {
+        refresh();
+        _lastDisplayUpdate = currentTime;
+        _needsDisplayUpdate = false;
+    }
 }

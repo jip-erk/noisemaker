@@ -83,6 +83,10 @@ class MidiMappings {
 
     // Helper to find knob index from CC number
     int8_t getKnobIndex(uint8_t ccNumber);
+
+    // Helper to calculate encoder direction with wrap-around detection
+    // Returns: 1 for forward, -1 for backward, 0 for no movement
+    int8_t calculateEncoderDirection(uint8_t currentValue, uint8_t lastValue);
 };
 
 #endif
