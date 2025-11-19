@@ -1,11 +1,19 @@
 #include "LiveScreen.h"
 
+// Default MIDI note mappings (C3=60, D3=62, E3=64, F3=65)
+const uint8_t LiveScreen::DEFAULT_MIDI_NOTES[NUM_SLOTS] = {60, 62, 64, 65};
+
 LiveScreen::LiveScreen(Controls *keyboard, Screen *screen,
                        NavigationCallback navCallback) {
     _keyboard = keyboard;
     _screen = screen;
     _navCallback = navCallback;
-    _audioResources = nullptr; // Will be set externally
+    _audioResources = nullptr;
+
+    // Initialize slots with default MIDI notes
+    for (int i = 0; i < NUM_SLOTS; i++) {
+        _slots[i].midiNote = DEFAULT_MIDI_NOTES[i];
+    }
 }
 
 LiveScreen::~LiveScreen() {
@@ -13,24 +21,9 @@ LiveScreen::~LiveScreen() {
 }
 
 void LiveScreen::refresh() {
-    currentState = LIVE_HOME;
-    loadFileList();
-    
-    _screen->clear();
-    _screen->drawStr(0, 8, "Live Samples");
-    
-    // Debug: Show file count
-    String debugText = "Files: " + String(_fileCount);
-    _screen->drawStr(0, 20, debugText.c_str());
-    
-    if (_fileCount == 0) {
-        _screen->drawStr(0, 35, "No samples found");
-        _screen->drawStr(0, 50, "Record some first!");
-    } else {
-        drawFileList();
-    }
-    
-    _screen->display();
+    currentState = LIVE_SLOT_VIEW;
+    _selectedSlotIndex = 0;
+    drawSlotView();
 }
 
 void LiveScreen::setAudioResources(AudioResources* audioResources) {
@@ -38,232 +31,272 @@ void LiveScreen::setAudioResources(AudioResources* audioResources) {
 }
 
 void LiveScreen::handleEvent(Controls::ButtonEvent event) {
+    // Back button (button 1) - depends on state
     if (event.buttonId == 1 && event.state == PRESSED) {
-        // Back button - return to home
-        if (_navCallback) {
-            _navCallback(AppContext::HOME);
-            return;
-        }
-    }
-
-    if (event.buttonId == 2 && event.state == PRESSED) {
-        // Select/Play button
-        if (currentState == LIVE_HOME && _fileCount > 0) {
-            playSelectedFile();
-        } else if (currentState == LIVE_PLAYING) {
-            // Pause playback
-            currentState = LIVE_PAUSED;
-        } else if (currentState == LIVE_PAUSED) {
-            // Resume playback
-            currentState = LIVE_PLAYING;
-            _playbackStartTime = millis();
-        }
-        return;
-    }
-
-    // Handle encoder for file selection (only on home screen)
-    if (event.buttonId == 0 && currentState == LIVE_HOME) {
-        if (event.encoderValue != 0) {
-            _selectedIndex += event.encoderValue;
-            _selectedIndex = constrain(_selectedIndex, 0, _fileCount - 1);
-            
-            // Redraw file list with new selection
-            _screen->clear();
-            _screen->drawStr(0, 8, "Live Samples");
-            
-            // Debug: Show file count
-            String debugText = "Files: " + String(_fileCount);
-            _screen->drawStr(0, 20, debugText.c_str());
-            
-            if (_fileCount > 0) {
-                drawFileList();
-            } else {
-                _screen->drawStr(0, 35, "No samples found");
-                _screen->drawStr(0, 50, "Record some first!");
+        if (currentState == LIVE_SLOT_VIEW) {
+            // Return to home
+            if (_navCallback) {
+                _navCallback(AppContext::HOME);
+                return;
             }
-            _screen->display();
+        } else if (currentState == LIVE_SAMPLE_SELECT) {
+            // Return to slot view
+            currentState = LIVE_SLOT_VIEW;
+            drawSlotView();
         }
         return;
     }
 
-    // Note: Volume control removed for USB audio - controlled by host system
+    // Button 2 - Select/Confirm
+    if (event.buttonId == 2 && event.state == PRESSED) {
+        if (currentState == LIVE_SLOT_VIEW) {
+            // Enter sample selection for this slot
+            loadFileList();
+            currentState = LIVE_SAMPLE_SELECT;
+            _selectedFileIndex = 0;
+            drawSampleSelect();
+        } else if (currentState == LIVE_SAMPLE_SELECT) {
+            // Assign selected sample to slot
+            assignSampleToSlot();
+            currentState = LIVE_SLOT_VIEW;
+            drawSlotView();
+        }
+        return;
+    }
 
-    // Handle stop playback (button 3 or long press on button 2)
+    // Button 3 - Play/Stop slot
     if (event.buttonId == 3 && event.state == PRESSED) {
-        if (currentState == LIVE_PLAYING || currentState == LIVE_PAUSED) {
-            stopPlayback();
+        if (currentState == LIVE_SLOT_VIEW) {
+            // Play the selected slot
+            if (_slots[_selectedSlotIndex].isAssigned) {
+                playSlot(_selectedSlotIndex);
+            }
+        } else if (currentState == LIVE_SAMPLE_SELECT) {
+            // Clear the slot
+            clearSlot(_selectedSlotIndex);
+            currentState = LIVE_SLOT_VIEW;
+            drawSlotView();
         }
         return;
     }
 
-    if (currentState == LIVE_HOME) refresh();
+    // Encoder - Navigation
+    if (event.buttonId == 0 && event.encoderValue != 0) {
+        if (currentState == LIVE_SLOT_VIEW) {
+            _selectedSlotIndex += event.encoderValue;
+            _selectedSlotIndex = constrain(_selectedSlotIndex, 0, NUM_SLOTS - 1);
+            drawSlotView();
+        } else if (currentState == LIVE_SAMPLE_SELECT) {
+            _selectedFileIndex += event.encoderValue;
+            _selectedFileIndex = constrain(_selectedFileIndex, 0, max(0, _fileCount - 1));
+            drawSampleSelect();
+        }
+        return;
+    }
+}
+
+void LiveScreen::drawSlotView() {
+    _screen->clear();
+    _screen->setHeaderFont();
+    _screen->drawStr(0, 10, "LIVE - Slots");
+    _screen->setNormalFont();
+
+    // Draw 4 slots
+    int yPos = 20;
+    for (int i = 0; i < NUM_SLOTS; i++) {
+        // Highlight selected slot
+        if (i == _selectedSlotIndex) {
+            _screen->drawBox(0, yPos - 2, 128, 12);
+            _screen->getDisplay()->setDrawColor(0);  // Invert text
+        }
+
+        // Slot number and MIDI note
+        String slotInfo = String(i + 1) + ":";
+        if (_slots[i].isAssigned) {
+            // Show sample name
+            String displayName = _slots[i].sampleName;
+            if (displayName.length() > 12) {
+                displayName = displayName.substring(0, 9) + "...";
+            }
+            slotInfo += displayName;
+        } else {
+            slotInfo += "<empty>";
+        }
+
+        _screen->drawStr(2, yPos + 8, slotInfo.c_str());
+
+        if (i == _selectedSlotIndex) {
+            _screen->getDisplay()->setDrawColor(1);  // Reset
+        }
+
+        yPos += 12;
+    }
+
+    _screen->display();
+}
+
+void LiveScreen::drawSampleSelect() {
+    _screen->clear();
+    _screen->setHeaderFont();
+    _screen->drawStr(0, 10, "Select Sample");
+    _screen->setNormalFont();
+
+    if (_fileCount == 0) {
+        _screen->drawStr(0, 25, "No samples found");
+        _screen->drawStr(0, 40, "Record some first!");
+        _screen->display();
+        return;
+    }
+
+    // Show scrollable file list
+    int startIndex = max(0, _selectedFileIndex - 2);
+    int endIndex = min(_fileCount, startIndex + 3);
+
+    int yPos = 20;
+    for (int i = startIndex; i < endIndex; i++) {
+        if (i == _selectedFileIndex) {
+            _screen->drawBox(0, yPos - 2, 128, 12);
+            _screen->getDisplay()->setDrawColor(0);
+        }
+
+        String displayName = getFileNameWithoutExtension(_fileList[i]);
+        if (displayName.length() > 15) {
+            displayName = displayName.substring(0, 12) + "...";
+        }
+
+        _screen->drawStr(2, yPos + 8, displayName.c_str());
+
+        if (i == _selectedFileIndex) {
+            _screen->getDisplay()->setDrawColor(1);
+        }
+
+        yPos += 12;
+    }
+
+    // Help text
+    _screen->drawStr(0, 60, "B2:OK B3:Clear");
+
+    _screen->display();
 }
 
 void LiveScreen::loadFileList() {
     _fileCount = 0;
-    
-    // Check if RECORDINGS directory exists
+
     if (!SD.exists("/RECORDINGS")) {
         Serial.println("RECORDINGS directory does not exist");
         return;
     }
-    
+
     File recordingsDir = SD.open("/RECORDINGS");
-    if (!recordingsDir) {
+    if (!recordingsDir || !recordingsDir.isDirectory()) {
         Serial.println("Failed to open RECORDINGS directory");
+        if (recordingsDir) recordingsDir.close();
         return;
     }
-    
-    if (!recordingsDir.isDirectory()) {
-        Serial.println("RECORDINGS is not a directory");
-        recordingsDir.close();
-        return;
-    }
-    
-    Serial.println("Scanning RECORDINGS directory...");
-    
+
     // Read all .WAV files
     while (true && _fileCount < 20) {
         File entry = recordingsDir.openNextFile();
-        if (!entry) {
-            Serial.println("No more entries");
-            break;
-        }
-        
+        if (!entry) break;
+
         String filename = entry.name();
-        Serial.println("Found entry: " + filename + " (isDir: " + String(entry.isDirectory()) + ")");
-        
         if (!entry.isDirectory()) {
             if (filename.endsWith(".WAV") || filename.endsWith(".wav")) {
-                _fileList[_fileCount] = filename;
-                _fileCount++;
-                Serial.println("Added to list: " + filename);
-            } else {
-                Serial.println("Skipped (not WAV): " + filename);
+                // Skip .bdf files
+                if (!filename.endsWith(".bdf") && !filename.endsWith(".BDF")) {
+                    _fileList[_fileCount] = filename;
+                    _fileCount++;
+                }
             }
-        } else {
-            Serial.println("Skipped directory: " + filename);
         }
         entry.close();
     }
-    
+
     recordingsDir.close();
-    
-    Serial.println("Total files found: " + String(_fileCount));
-    
-    // Reset selection if out of bounds
-    if (_selectedIndex >= _fileCount) {
-        _selectedIndex = 0;
+    Serial.println("Loaded " + String(_fileCount) + " samples");
+}
+
+void LiveScreen::assignSampleToSlot() {
+    if (_selectedFileIndex >= _fileCount) return;
+
+    String fileName = getFileNameWithoutExtension(_fileList[_selectedFileIndex]);
+    _slots[_selectedSlotIndex].assignSample(fileName, DEFAULT_MIDI_NOTES[_selectedSlotIndex]);
+
+    Serial.print("Assigned '");
+    Serial.print(fileName);
+    Serial.print("' to slot ");
+    Serial.println(_selectedSlotIndex);
+}
+
+void LiveScreen::clearSlot(int slotIndex) {
+    if (slotIndex < 0 || slotIndex >= NUM_SLOTS) return;
+
+    stopSlot(slotIndex);
+    _slots[slotIndex].clear();
+    _slots[slotIndex].midiNote = DEFAULT_MIDI_NOTES[slotIndex];
+
+    Serial.print("Cleared slot ");
+    Serial.println(slotIndex);
+}
+
+void LiveScreen::playSlot(int slotIndex) {
+    if (!_audioResources || slotIndex < 0 || slotIndex >= NUM_SLOTS) return;
+    if (!_slots[slotIndex].isAssigned) return;
+
+    // Get the appropriate WAV player for this slot
+    AudioPlaySdWavExtended* player = nullptr;
+    switch (slotIndex) {
+        case 0: player = &_audioResources->playWav1; break;
+        case 1: player = &_audioResources->playWav2; break;
+        case 2: player = &_audioResources->playWav3; break;
+        case 3: player = &_audioResources->playWav4; break;
+    }
+
+    if (player) {
+        String wavPath = _slots[slotIndex].getWavPath();
+        uint32_t startByte = _slots[slotIndex].getStartByte();
+        uint32_t endByte = _slots[slotIndex].getEndByte();
+
+        Serial.print("Playing slot ");
+        Serial.print(slotIndex);
+        Serial.print(": ");
+        Serial.print(wavPath);
+        Serial.print(" [");
+        Serial.print(startByte);
+        Serial.print(" - ");
+        Serial.print(endByte);
+        Serial.println("]");
+
+        player->play(wavPath.c_str(), startByte, endByte, 1.0);
     }
 }
 
-void LiveScreen::playSelectedFile() {
-    if (_selectedIndex >= _fileCount || !_audioResources) {
-        return;
+void LiveScreen::stopSlot(int slotIndex) {
+    if (!_audioResources || slotIndex < 0 || slotIndex >= NUM_SLOTS) return;
+
+    AudioPlaySdWavExtended* player = nullptr;
+    switch (slotIndex) {
+        case 0: player = &_audioResources->playWav1; break;
+        case 1: player = &_audioResources->playWav2; break;
+        case 2: player = &_audioResources->playWav3; break;
+        case 3: player = &_audioResources->playWav4; break;
     }
-    
-    _currentPlayingFile = _fileList[_selectedIndex];
-    currentState = LIVE_PLAYING;
-    _playbackStartTime = millis();
-    
-    // Start playing the WAV file
-    String fullPath = "/RECORDINGS/" + _currentPlayingFile;
-    if (_audioResources->playWav1.play(fullPath.c_str())) {
-        _screen->clear();
-        _screen->drawStr(0, 8, "Playing:");
-        _screen->drawStr(0, 20, _currentPlayingFile.c_str());
-        _screen->drawStr(0, 35, "Click to pause");
-        _screen->drawStr(0, 50, "USB Audio");
-        _screen->display();
-    } else {
-        // Failed to play file
-        currentState = LIVE_HOME;
-        _screen->clear();
-        _screen->drawStr(0, 8, "Error playing file");
-        _screen->drawStr(0, 25, _currentPlayingFile.c_str());
-        _screen->display();
-        delay(2000);
-        refresh();
+
+    if (player && player->isPlaying()) {
+        player->stop();
     }
 }
 
-void LiveScreen::stopPlayback() {
-    // Stop audio playback
-    if (_audioResources) {
-        _audioResources->playWav1.stop();
+void LiveScreen::stopAllSlots() {
+    for (int i = 0; i < NUM_SLOTS; i++) {
+        stopSlot(i);
     }
-    
-    currentState = LIVE_HOME;
-    _currentPlayingFile = "";
-    
-    _screen->clear();
-    _screen->drawStr(0, 8, "Live Samples");
-    drawFileList();
-    _screen->display();
 }
 
-void LiveScreen::updatePlayback() {
-    if (currentState != LIVE_PLAYING && currentState != LIVE_PAUSED) {
-        return;
+String LiveScreen::getFileNameWithoutExtension(const String& fileName) {
+    int dotIndex = fileName.lastIndexOf('.');
+    if (dotIndex > 0) {
+        return fileName.substring(0, dotIndex);
     }
-    
-    // Check if playback finished
-    if (currentState == LIVE_PLAYING && _audioResources && !_audioResources->playWav1.isPlaying()) {
-        stopPlayback();
-        return;
-    }
-    
-    // Update playback display
-    _screen->clear();
-    _screen->drawStr(0, 8, currentState == LIVE_PLAYING ? "Playing:" : "Paused:");
-    _screen->drawStr(0, 20, _currentPlayingFile.c_str());
-    
-    // Show playback time
-    unsigned long elapsed = millis() - _playbackStartTime;
-    int seconds = (elapsed / 1000) % 60;
-    int minutes = (elapsed / 1000) / 60;
-    
-    String timeStr = String(minutes) + ":" + (seconds < 10 ? "0" : "") + String(seconds);
-    _screen->drawStr(0, 35, timeStr.c_str());
-    
-    // Show USB audio info
-    _screen->drawStr(0, 50, "USB Audio");
-    
-    _screen->display();
-}
-
-void LiveScreen::drawFileList() {
-    if (_fileCount == 0) return;
-    
-    // Calculate which files to show (scrollable list)
-    int startIndex = max(0, _selectedIndex - 2);
-    int endIndex = min(_fileCount, startIndex + 3); // Reduced to fit with debug text
-    
-    int yPos = 30; // Start below debug text
-    for (int i = startIndex; i < endIndex; i++) {
-        if (i == _selectedIndex) {
-            // Highlight selected item
-            _screen->drawBox(0, yPos - 2, 128, 12);
-            _screen->getDisplay()->setDrawColor(0); // Invert text color
-        }
-        
-        // Truncate filename if too long
-        String displayName = _fileList[i];
-        if (displayName.length() > 15) {
-            displayName = displayName.substring(0, 12) + "...";
-        }
-        
-        _screen->drawStr(2, yPos + 8, displayName.c_str());
-        
-        if (i == _selectedIndex) {
-            _screen->getDisplay()->setDrawColor(1); // Reset text color
-        }
-        
-        yPos += 12;
-    }
-    
-    // Show selection indicator
-    if (_fileCount > 3) {
-        _screen->drawStr(120, 60, "^");
-    }
+    return fileName;
 }

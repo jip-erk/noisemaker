@@ -21,7 +21,11 @@ class AudioResources {
     AudioAnalyzePeak peak1;
     AudioAnalyzePeak peak2;
     AudioPlaySdWavExtended playWav1;
+    AudioPlaySdWavExtended playWav2;
+    AudioPlaySdWavExtended playWav3;
+    AudioPlaySdWavExtended playWav4;
 
+    AudioMixer4 playbackMixer;  // Mixer for 4 WAV players
     AudioMixer4 mixer1;
 
     AudioRecordQueue queue1;
@@ -40,6 +44,10 @@ class AudioResources {
     AudioConnection patchCord10;
     AudioConnection patchCord11;
     AudioConnection patchCord12;
+    AudioConnection patchCord13;
+    AudioConnection patchCord14;
+    AudioConnection patchCord15;
+    AudioConnection patchCord16;
 };
 
 #endif

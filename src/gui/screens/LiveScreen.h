@@ -6,6 +6,7 @@
 
 #include "../../hardware/Controls.h"
 #include "../../helper/AudioResources.h"
+#include "../../helper/SampleSlot.hpp"
 #include "../../main.h"
 #include "../Screen.h"
 
@@ -20,33 +21,50 @@ class LiveScreen {
     void handleEvent(Controls::ButtonEvent);
     void refresh();
     void setAudioResources(AudioResources* audioResources);
-    void updatePlayback();
 
     enum LiveState {
-        LIVE_HOME = 0,
-        LIVE_PLAYING = 1,
-        LIVE_PAUSED = 2
+        LIVE_SLOT_VIEW = 0,      // Viewing/selecting slots
+        LIVE_SAMPLE_SELECT = 1,  // Selecting a sample for a slot
+        LIVE_PLAYING = 2         // Currently playing samples
     };
 
-    LiveState currentState = LIVE_HOME;
+    LiveState currentState = LIVE_SLOT_VIEW;
 
    private:
     NavigationCallback _navCallback;
-
     Controls *_keyboard;
     Screen *_screen;
     AudioResources *_audioResources;
-    
-    int _selectedIndex = 0;
+
+    // Sample slot management
+    static const int NUM_SLOTS = 4;
+    SampleSlot _slots[NUM_SLOTS];
+    int _selectedSlotIndex = 0;
+
+    // Default MIDI note mappings (C3, D3, E3, F3)
+    static const uint8_t DEFAULT_MIDI_NOTES[NUM_SLOTS];
+
+    // File list for sample selection
+    int _selectedFileIndex = 0;
     int _fileCount = 0;
-    String _fileList[20]; // Max 20 files
-    String _currentPlayingFile = "";
-    unsigned long _playbackStartTime = 0;
-    
+    String _fileList[20];  // Max 20 files
+
+    // UI functions
+    void drawSlotView();
+    void drawSampleSelect();
+
+    // Sample management
     void loadFileList();
-    void playSelectedFile();
-    void stopPlayback();
-    void drawFileList();
+    void assignSampleToSlot();
+    void clearSlot(int slotIndex);
+
+    // Playback functions
+    void playSlot(int slotIndex);
+    void stopSlot(int slotIndex);
+    void stopAllSlots();
+
+    // Helper to extract filename without extension
+    String getFileNameWithoutExtension(const String& fileName);
 };
 
 #endif
