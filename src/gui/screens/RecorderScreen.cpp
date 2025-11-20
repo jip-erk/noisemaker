@@ -74,16 +74,32 @@ void RecorderScreen::handleEvent(Controls::ButtonEvent event) {
         } else if (currentState == RECORDER_RECORDING) {
             stopRecording();
         } else if (currentState == RECORDER_EDITING) {
-            String path = getFilePath(_recordedFileName);
-            const int WAV_HEADER_SIZE = 44;
-            uint32_t startByte =
-                _waveformSelector.getSelectStart() * 2 + WAV_HEADER_SIZE;
-            uint32_t endByte =
-                _waveformSelector.getSelectEnd() * 2 + WAV_HEADER_SIZE;
-            _audioResources->playWav1.play(path.c_str(), startByte, endByte,
-                                           1.0);
+            // Button 1 held + Button 2 = Save .bdf file
+            if (event.button1Held) {
+                uint32_t startPos = _waveformSelector.getSelectStart();
+                uint32_t endPos = _waveformSelector.getSelectEnd();
+                saveBinaryDataFile(_recordedFileName, startPos, endPos);
 
-            // refresh();
+                // Show save confirmation
+                _screen->clear();
+                _screen->drawStr(0, 10, _recordedFileName.c_str());
+                _screen->drawStr(0, 30, "Saved!");
+                _screen->display();
+                delay(500);
+
+                // Redraw edit screen
+                showEditScreen();
+            } else {
+                // Button 2 alone = Play sample
+                String path = getFilePath(_recordedFileName);
+                const int WAV_HEADER_SIZE = 44;
+                uint32_t startByte =
+                    _waveformSelector.getSelectStart() * 2 + WAV_HEADER_SIZE;
+                uint32_t endByte =
+                    _waveformSelector.getSelectEnd() * 2 + WAV_HEADER_SIZE;
+                _audioResources->playWav1.play(path.c_str(), startByte, endByte,
+                                               1.0);
+            }
         }
         return;
     }

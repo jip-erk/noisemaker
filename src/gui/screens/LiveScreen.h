@@ -44,6 +44,9 @@ class LiveScreen {
     // Default MIDI note mappings (C3, D3, E3, F3)
     static const uint8_t DEFAULT_MIDI_NOTES[NUM_SLOTS];
 
+    // Slot labels for display
+    static const char* SLOT_LABELS[NUM_SLOTS];
+
     // File list for sample selection
     int _selectedFileIndex = 0;
     int _fileCount = 0;

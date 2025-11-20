@@ -3,6 +3,9 @@
 // Default MIDI note mappings (C3=60, D3=62, E3=64, F3=65)
 const uint8_t LiveScreen::DEFAULT_MIDI_NOTES[NUM_SLOTS] = {60, 62, 64, 65};
 
+// Slot labels for display
+const char* LiveScreen::SLOT_LABELS[NUM_SLOTS] = {"kick", "snare", "hat", "perc"};
+
 LiveScreen::LiveScreen(Controls *keyboard, Screen *screen,
                        NavigationCallback navCallback) {
     _keyboard = keyboard;
@@ -110,13 +113,13 @@ void LiveScreen::drawSlotView() {
             _screen->getDisplay()->setDrawColor(0);  // Invert text
         }
 
-        // Slot number and MIDI note
-        String slotInfo = String(i + 1) + ":";
+        // Slot label and sample name
+        String slotInfo = String(SLOT_LABELS[i]) + ":";
         if (_slots[i].isAssigned) {
             // Show sample name
             String displayName = _slots[i].sampleName;
-            if (displayName.length() > 12) {
-                displayName = displayName.substring(0, 9) + "...";
+            if (displayName.length() > 10) {
+                displayName = displayName.substring(0, 7) + "...";
             }
             slotInfo += displayName;
         } else {
