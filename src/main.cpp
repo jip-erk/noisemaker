@@ -61,7 +61,7 @@ void changeContext(AppContext newContext) {
             recorderContext.refresh();
             break;
         case AppContext::LIVE:
-            audioResources.enableLivePassthrough();
+            audioResources.disableLivePassthrough();
             liveContext.refresh();
             break;
         default:
