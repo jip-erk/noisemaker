@@ -19,6 +19,7 @@ class LiveScreen {
     ~LiveScreen();
 
     void handleEvent(Controls::ButtonEvent);
+    void handleMidiNote(uint8_t note, uint8_t velocity);
     void refresh();
     void setAudioResources(AudioResources* audioResources);
 

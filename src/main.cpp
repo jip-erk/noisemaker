@@ -9,6 +9,7 @@
 #include <SerialFlash.h>
 #include <U8g2lib.h>
 #include <Wire.h>
+#include <usb_midi.h>
 
 #include "gui/Screen.h"
 #include "gui/screens/HomeScreen.h"
@@ -52,12 +53,15 @@ void changeContext(AppContext newContext) {
 
     switch (currentAppContext) {
         case AppContext::HOME:
+            audioResources.disableLivePassthrough();
             homeContext.refresh();
             break;
         case AppContext::RECORDER:
+            audioResources.disableLivePassthrough();
             recorderContext.refresh();
             break;
         case AppContext::LIVE:
+            audioResources.enableLivePassthrough();
             liveContext.refresh();
             break;
         default:
@@ -152,6 +156,18 @@ void loop(void) {
     if (ticked) {
         ticked = false;
         sendTickToActiveContext();
+    }
+
+    // Handle MIDI input (only in LIVE mode)
+    if (currentAppContext == AppContext::LIVE) {
+        while (usbMIDI.read()) {
+            byte type = usbMIDI.getType();
+            if (type == usbMIDI.NoteOn) {
+                byte note = usbMIDI.getData1();
+                byte velocity = usbMIDI.getData2();
+                liveContext.handleMidiNote(note, velocity);
+            }
+        }
     }
 
     controls.tick();

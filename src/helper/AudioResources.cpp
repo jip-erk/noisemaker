@@ -30,8 +30,8 @@ AudioResources::AudioResources()
     playbackMixer.gain(1, 0.8);
     playbackMixer.gain(2, 0.8);
     playbackMixer.gain(3, 0.8);
-    mixer1.gain(0, 0.8);
-    mixer1.gain(1, 0.6);
+    mixer1.gain(0, 0.8);  // Playback mixer to output
+    mixer1.gain(1, 0.0);  // Live input to output (disabled by default)
 }
 
 AudioResources::~AudioResources() {
@@ -41,11 +41,17 @@ AudioResources::~AudioResources() {
 void AudioResources::muteInput() {
     recordInputMixer.gain(0, 0.0);
     recordInputMixer.gain(1, 0.0);
-    mixer1.gain(1, 0.0);
 };
 
 void AudioResources::unmuteInput() {
     recordInputMixer.gain(0, 0.6);
     recordInputMixer.gain(1, 0.6);
-    mixer1.gain(1, 0.6);
+};
+
+void AudioResources::enableLivePassthrough() {
+    mixer1.gain(1, 0.6);  // Enable live mic to output
+};
+
+void AudioResources::disableLivePassthrough() {
+    mixer1.gain(1, 0.0);  // Disable live mic to output
 };

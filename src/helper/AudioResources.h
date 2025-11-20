@@ -14,6 +14,8 @@ class AudioResources {
 
     void muteInput();
     void unmuteInput();
+    void enableLivePassthrough();
+    void disableLivePassthrough();
 
     AudioInputI2S audioInput;
     AudioOutputUSB audioOutput;

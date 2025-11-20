@@ -33,6 +33,26 @@ void LiveScreen::setAudioResources(AudioResources* audioResources) {
     _audioResources = audioResources;
 }
 
+void LiveScreen::handleMidiNote(uint8_t note, uint8_t velocity) {
+    // Only handle note-on events (velocity > 0)
+    if (velocity == 0) return;
+
+    // Find the slot that matches this MIDI note
+    for (int i = 0; i < NUM_SLOTS; i++) {
+        if (_slots[i].midiNote == note && _slots[i].isAssigned) {
+            playSlot(i);
+
+            Serial.print("MIDI trigger slot ");
+            Serial.print(i);
+            Serial.print(" (");
+            Serial.print(SLOT_LABELS[i]);
+            Serial.print(") with note ");
+            Serial.println(note);
+            break;
+        }
+    }
+}
+
 void LiveScreen::handleEvent(Controls::ButtonEvent event) {
     // Back button (button 1) - depends on state
     if (event.buttonId == 1 && event.state == PRESSED) {
