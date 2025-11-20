@@ -1,7 +1,7 @@
 #include "LiveScreen.h"
 
-// Default MIDI note mappings (C3=60, D3=62, E3=64, F3=65)
-const uint8_t LiveScreen::DEFAULT_MIDI_NOTES[NUM_SLOTS] = {60, 62, 64, 65};
+// Default MIDI note mappings (C3=60, C#3=61, D3=62, D#3=63)
+const uint8_t LiveScreen::DEFAULT_MIDI_NOTES[NUM_SLOTS] = {60, 61, 62, 63};
 
 // Slot labels for display
 const char* LiveScreen::SLOT_LABELS[NUM_SLOTS] = {"kick", "snare", "hat", "perc"};
