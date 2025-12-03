@@ -1,0 +1,317 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" modified="2025-12-01" agent="Claude Code" version="24.0.0" type="device">
+  <diagram name="Noisemaker Class Diagram" id="class-diagram">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1400" math="0" shadow="1">
+      <root>
+        <mxCell id="0" value="" parent="" vertex="1" visible="false"/>
+        <mxCell id="1" parent="0" vertex="1" visible="false"/>
+
+        <!-- CORE CLASSES SECTION -->
+
+        <!-- Screen Class -->
+        <mxCell id="class_Screen" value="Screen" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;rounded=1;fontSize=12;fontColor=#000000;fillColor=#ffffff;strokeColor=#000000;strokeWidth=1;" parent="1" vertex="1">
+          <mxGeometry x="30" y="30" width="200" height="180" as="geometry"/>
+        </mxCell>
+        <mxCell id="class_Screen_attr" value="+ u8g2: U8G2_SH1106..." style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;" parent="class_Screen" vertex="1">
+          <mxGeometry y="26" width="200" height="28" as="geometry"/>
+        </mxCell>
+        <mxCell id="class_Screen_sep1" value="" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=4;spacingRight=4;rotatable=0;deletable=0;editable=0;connectable=0;" parent="class_Screen" vertex="1">
+          <mxGeometry y="54" width="200" height="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="class_Screen_methods" value="+ begin(): void&#xa;+ clear(): void&#xa;+ display(): void&#xa;+ getDisplay(): U8G2*&#xa;+ drawItemList(): void&#xa;+ drawBox(): void&#xa;+ drawStr(): void" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=10;" parent="class_Screen" vertex="1">
+          <mxGeometry y="55" width="200" height="125" as="geometry"/>
+        </mxCell>
+
+        <!-- Controls Class -->
+        <mxCell id="class_Controls" value="Controls" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;rounded=1;fontSize=12;fontColor=#000000;fillColor=#ffffff;strokeColor=#000000;strokeWidth=1;" parent="1" vertex="1">
+          <mxGeometry x="310" y="30" width="220" height="220" as="geometry"/>
+        </mxCell>
+        <mxCell id="class_Controls_attr" value="- encoder: Encoder&#xa;- eventCallback: EventCallback&#xa;- button1State, 2State, 3State: bool&#xa;+ static instance: Controls*" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=10;" parent="class_Controls" vertex="1">
+          <mxGeometry y="26" width="220" height="68" as="geometry"/>
+        </mxCell>
+        <mxCell id="class_Controls_sep1" value="" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=4;spacingRight=4;rotatable=0;deletable=0;editable=0;connectable=0;" parent="class_Controls" vertex="1">
+          <mxGeometry y="94" width="220" height="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="class_Controls_methods" value="+ tick(): void&#xa;+ setEventCallback(): void&#xa;+ isDown(buttonId): bool&#xa;+ isComboPressed(): bool&#xa;+ getButtonMask(): uint8_t" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=10;" parent="class_Controls" vertex="1">
+          <mxGeometry y="95" width="220" height="125" as="geometry"/>
+        </mxCell>
+
+        <!-- AudioResources Class -->
+        <mxCell id="class_AudioResources" value="AudioResources" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;rounded=1;fontSize=12;fontColor=#000000;fillColor=#ffffff;strokeColor=#000000;strokeWidth=1;" parent="1" vertex="1">
+          <mxGeometry x="620" y="30" width="240" height="220" as="geometry"/>
+        </mxCell>
+        <mxCell id="class_AudioResources_attr" value="+ audioInput: AudioInputI2S&#xa;+ audioOutput: AudioOutputUSB&#xa;+ playbackMixer: AudioMixer4&#xa;+ queue1: AudioRecordQueue&#xa;+ playWav1-4: AudioPlaySdWavExtended" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=10;" parent="class_AudioResources" vertex="1">
+          <mxGeometry y="26" width="240" height="68" as="geometry"/>
+        </mxCell>
+        <mxCell id="class_AudioResources_sep1" value="" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=4;spacingRight=4;rotatable=0;deletable=0;editable=0;connectable=0;" parent="class_AudioResources" vertex="1">
+          <mxGeometry y="94" width="240" height="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="class_AudioResources_methods" value="+ muteInput(): void&#xa;+ unmuteInput(): void&#xa;+ enableLivePassthrough(): void&#xa;+ disableLivePassthrough(): void" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=10;" parent="class_AudioResources" vertex="1">
+          <mxGeometry y="95" width="240" height="125" as="geometry"/>
+        </mxCell>
+
+        <!-- SCREEN IMPLEMENTATIONS SECTION -->
+
+        <!-- HomeScreen Class -->
+        <mxCell id="class_HomeScreen" value="HomeScreen" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;rounded=1;fontSize=12;fontColor=#000000;fillColor=#ffffff;strokeColor=#000000;strokeWidth=1;" parent="1" vertex="1">
+          <mxGeometry x="30" y="310" width="220" height="160" as="geometry"/>
+        </mxCell>
+        <mxCell id="class_HomeScreen_attr" value="- _keyboard: Controls*&#xa;- _screen: Screen*&#xa;- _selectedIndex: int&#xa;- _navCallback: NavigationCallback" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=10;" parent="class_HomeScreen" vertex="1">
+          <mxGeometry y="26" width="220" height="68" as="geometry"/>
+        </mxCell>
+        <mxCell id="class_HomeScreen_sep1" value="" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=4;spacingRight=4;rotatable=0;deletable=0;editable=0;connectable=0;" parent="class_HomeScreen" vertex="1">
+          <mxGeometry y="94" width="220" height="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="class_HomeScreen_methods" value="+ handleEvent(event): void&#xa;+ refresh(): void" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=10;" parent="class_HomeScreen" vertex="1">
+          <mxGeometry y="95" width="220" height="65" as="geometry"/>
+        </mxCell>
+
+        <!-- RecorderScreen Class -->
+        <mxCell id="class_RecorderScreen" value="RecorderScreen" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;rounded=1;fontSize=12;fontColor=#000000;fillColor=#ffffff;strokeColor=#000000;strokeWidth=1;" parent="1" vertex="1">
+          <mxGeometry x="310" y="310" width="240" height="200" as="geometry"/>
+        </mxCell>
+        <mxCell id="class_RecorderScreen_attr" value="+ currentState: RecorderState&#xa;- _volumeBar: VolumeBar&#xa;- _waveform: Waveform&#xa;- _waveformSelector: WaveformSelector&#xa;- _wavWriter: WavFileWriter*&#xa;- _audioResources: AudioResources*" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=10;" parent="class_RecorderScreen" vertex="1">
+          <mxGeometry y="26" width="240" height="88" as="geometry"/>
+        </mxCell>
+        <mxCell id="class_RecorderScreen_sep1" value="" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=4;spacingRight=4;rotatable=0;deletable=0;editable=0;connectable=0;" parent="class_RecorderScreen" vertex="1">
+          <mxGeometry y="114" width="240" height="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="class_RecorderScreen_methods" value="+ handleEvent(): void&#xa;+ refresh(): void&#xa;+ startRecording(): void&#xa;+ stopRecording(): void&#xa;+ updateWaveform(): void&#xa;+ setAudioResources(): void" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=10;" parent="class_RecorderScreen" vertex="1">
+          <mxGeometry y="115" width="240" height="85" as="geometry"/>
+        </mxCell>
+
+        <!-- LiveScreen Class -->
+        <mxCell id="class_LiveScreen" value="LiveScreen" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;rounded=1;fontSize=12;fontColor=#000000;fillColor=#ffffff;strokeColor=#000000;strokeWidth=1;" parent="1" vertex="1">
+          <mxGeometry x="620" y="310" width="240" height="180" as="geometry"/>
+        </mxCell>
+        <mxCell id="class_LiveScreen_attr" value="+ currentState: LiveState&#xa;- _slots: SampleSlot[4]&#xa;- _selectedSlotIndex: int&#xa;- _audioResources: AudioResources*&#xa;- _keyboard: Controls*" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=10;" parent="class_LiveScreen" vertex="1">
+          <mxGeometry y="26" width="240" height="68" as="geometry"/>
+        </mxCell>
+        <mxCell id="class_LiveScreen_sep1" value="" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=4;spacingRight=4;rotatable=0;deletable=0;editable=0;connectable=0;" parent="class_LiveScreen" vertex="1">
+          <mxGeometry y="94" width="240" height="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="class_LiveScreen_methods" value="+ handleEvent(): void&#xa;+ handleMidiNote(): void&#xa;+ refresh(): void&#xa;+ playSlot(): void&#xa;+ stopSlot(): void" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=10;" parent="class_LiveScreen" vertex="1">
+          <mxGeometry y="95" width="240" height="85" as="geometry"/>
+        </mxCell>
+
+        <!-- COMPONENT CLASSES SECTION -->
+
+        <!-- VolumeBar Class -->
+        <mxCell id="class_VolumeBar" value="VolumeBar" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;rounded=1;fontSize=12;fontColor=#000000;fillColor=#ffffff;strokeColor=#000000;strokeWidth=1;" parent="1" vertex="1">
+          <mxGeometry x="70" y="570" width="200" height="140" as="geometry"/>
+        </mxCell>
+        <mxCell id="class_VolumeBar_attr" value="- _screen: Screen*&#xa;- _leftVolume: float&#xa;- _rightVolume: float&#xa;- _x, _y, _width, _height: int" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=10;" parent="class_VolumeBar" vertex="1">
+          <mxGeometry y="26" width="200" height="68" as="geometry"/>
+        </mxCell>
+        <mxCell id="class_VolumeBar_sep1" value="" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=4;spacingRight=4;rotatable=0;deletable=0;editable=0;connectable=0;" parent="class_VolumeBar" vertex="1">
+          <mxGeometry y="94" width="200" height="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="class_VolumeBar_methods" value="+ drawVolumeBar(): void&#xa;+ setLeftVolume(): void&#xa;+ setRightVolume(): void" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=10;" parent="class_VolumeBar" vertex="1">
+          <mxGeometry y="95" width="200" height="45" as="geometry"/>
+        </mxCell>
+
+        <!-- Waveform Class -->
+        <mxCell id="class_Waveform" value="Waveform" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;rounded=1;fontSize=12;fontColor=#000000;fillColor=#ffffff;strokeColor=#000000;strokeWidth=1;" parent="1" vertex="1">
+          <mxGeometry x="330" y="570" width="220" height="160" as="geometry"/>
+        </mxCell>
+        <mxCell id="class_Waveform_attr" value="- _screen: Screen*&#xa;- _minCache: int16_t*&#xa;- _maxCache: int16_t*&#xa;- _totalSamples: int&#xa;- _cacheSize: int" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=10;" parent="class_Waveform" vertex="1">
+          <mxGeometry y="26" width="220" height="68" as="geometry"/>
+        </mxCell>
+        <mxCell id="class_Waveform_sep1" value="" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=4;spacingRight=4;rotatable=0;deletable=0;editable=0;connectable=0;" parent="class_Waveform" vertex="1">
+          <mxGeometry y="94" width="220" height="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="class_Waveform_methods" value="+ clear(): void&#xa;+ addAudioData(): void&#xa;+ loadWaveformFile(): bool&#xa;+ drawCachedWaveform(): void&#xa;+ drawWaveform(): void&#xa;+ getTotalSamples(): int" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=10;" parent="class_Waveform" vertex="1">
+          <mxGeometry y="95" width="220" height="65" as="geometry"/>
+        </mxCell>
+
+        <!-- WaveformSelector Class -->
+        <mxCell id="class_WaveformSelector" value="WaveformSelector" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;rounded=1;fontSize=12;fontColor=#000000;fillColor=#ffffff;strokeColor=#000000;strokeWidth=1;" parent="1" vertex="1">
+          <mxGeometry x="610" y="570" width="220" height="160" as="geometry"/>
+        </mxCell>
+        <mxCell id="class_WaveformSelector_attr" value="- _waveform: Waveform*&#xa;- selectStartX: int&#xa;- selectEndX: int&#xa;- selectingLeft: bool&#xa;- _viewStartSample: int" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=10;" parent="class_WaveformSelector" vertex="1">
+          <mxGeometry y="26" width="220" height="68" as="geometry"/>
+        </mxCell>
+        <mxCell id="class_WaveformSelector_sep1" value="" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=4;spacingRight=4;rotatable=0;deletable=0;editable=0;connectable=0;" parent="class_WaveformSelector" vertex="1">
+          <mxGeometry y="94" width="220" height="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="class_WaveformSelector_methods" value="+ updateSelection(): void&#xa;+ zoom(): void&#xa;+ changeSide(): void&#xa;+ draw(): void&#xa;+ getSelectStart(): int&#xa;+ getSelectEnd(): int" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=10;" parent="class_WaveformSelector" vertex="1">
+          <mxGeometry y="95" width="220" height="65" as="geometry"/>
+        </mxCell>
+
+        <!-- WavFileWriter Class -->
+        <mxCell id="class_WavFileWriter" value="WavFileWriter" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;rounded=1;fontSize=12;fontColor=#000000;fillColor=#ffffff;strokeColor=#000000;strokeWidth=1;" parent="1" vertex="1">
+          <mxGeometry x="900" y="570" width="220" height="160" as="geometry"/>
+        </mxCell>
+        <mxCell id="class_WavFileWriter_attr" value="- m_isWriting: bool&#xa;- m_queue: AudioRecordQueue&amp;&#xa;- m_file: File&#xa;- m_accumulatedBuffer: int16_t*&#xa;- m_totalBytesWritten: uint32_t" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=10;" parent="class_WavFileWriter" vertex="1">
+          <mxGeometry y="26" width="220" height="68" as="geometry"/>
+        </mxCell>
+        <mxCell id="class_WavFileWriter_sep1" value="" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=4;spacingRight=4;rotatable=0;deletable=0;editable=0;connectable=0;" parent="class_WavFileWriter" vertex="1">
+          <mxGeometry y="94" width="220" height="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="class_WavFileWriter_methods" value="+ open(): bool&#xa;+ isWriting(): bool&#xa;+ update(): bool&#xa;+ close(): bool&#xa;+ getAccumulatedBuffer(): int16_t*" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=10;" parent="class_WavFileWriter" vertex="1">
+          <mxGeometry y="95" width="220" height="65" as="geometry"/>
+        </mxCell>
+
+        <!-- NameGenerator Class -->
+        <mxCell id="class_NameGenerator" value="NameGenerator" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;rounded=1;fontSize=12;fontColor=#000000;fillColor=#ffffff;strokeColor=#000000;strokeWidth=1;" parent="1" vertex="1">
+          <mxGeometry x="30" y="800" width="220" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="class_NameGenerator_attr" value="- ADJ_COUNT: static const = 50&#xa;- NOUN_COUNT: static const = 50" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=10;" parent="class_NameGenerator" vertex="1">
+          <mxGeometry y="26" width="220" height="44" as="geometry"/>
+        </mxCell>
+        <mxCell id="class_NameGenerator_sep1" value="" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=4;spacingRight=4;rotatable=0;deletable=0;editable=0;connectable=0;" parent="class_NameGenerator" vertex="1">
+          <mxGeometry y="70" width="220" height="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="class_NameGenerator_methods" value="+ generate(): String&#xa;+ generateAudioFilename(): String&#xa;+ getTotalCombinations(): uint" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=10;" parent="class_NameGenerator" vertex="1">
+          <mxGeometry y="71" width="220" height="49" as="geometry"/>
+        </mxCell>
+
+        <!-- SampleSlot Struct -->
+        <mxCell id="class_SampleSlot" value="SampleSlot" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;rounded=1;fontSize=12;fontColor=#000000;fillColor=#ffffff;strokeColor=#000000;strokeWidth=1;" parent="1" vertex="1">
+          <mxGeometry x="330" y="800" width="220" height="160" as="geometry"/>
+        </mxCell>
+        <mxCell id="class_SampleSlot_attr" value="+ sampleName: String&#xa;+ startPos: uint32_t&#xa;+ endPos: uint32_t&#xa;+ midiNote: uint8_t&#xa;+ isAssigned: bool" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=10;" parent="class_SampleSlot" vertex="1">
+          <mxGeometry y="26" width="220" height="68" as="geometry"/>
+        </mxCell>
+        <mxCell id="class_SampleSlot_sep1" value="" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=4;spacingRight=4;rotatable=0;deletable=0;editable=0;connectable=0;" parent="class_SampleSlot" vertex="1">
+          <mxGeometry y="94" width="220" height="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="class_SampleSlot_methods" value="+ loadBDF(): bool&#xa;+ assignSample(): void&#xa;+ clear(): void&#xa;+ getWavPath(): String&#xa;+ getStartByte(): uint32_t" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=10;" parent="class_SampleSlot" vertex="1">
+          <mxGeometry y="95" width="220" height="65" as="geometry"/>
+        </mxCell>
+
+        <!-- AudioPlaySdWavExtended Class -->
+        <mxCell id="class_AudioPlaySdWavExtended" value="AudioPlaySdWavExtended" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;rounded=1;fontSize=12;fontColor=#ffffff;fillColor=#003366;strokeColor=#000000;strokeWidth=2;" parent="1" vertex="1">
+          <mxGeometry x="650" y="800" width="240" height="180" as="geometry"/>
+        </mxCell>
+        <mxCell id="class_AudioPlaySdWavExtended_attr" value="- wavfile: File&#xa;- data_length: uint32_t&#xa;- play_start_position: uint32_t&#xa;- play_end_position: uint32_t&#xa;- volume_scale: float" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=10;fontColor=#ffffff;" parent="class_AudioPlaySdWavExtended" vertex="1">
+          <mxGeometry y="26" width="240" height="68" as="geometry"/>
+        </mxCell>
+        <mxCell id="class_AudioPlaySdWavExtended_sep1" value="" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=4;spacingRight=4;rotatable=0;deletable=0;editable=0;connectable=0;" parent="class_AudioPlaySdWavExtended" vertex="1">
+          <mxGeometry y="94" width="240" height="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="class_AudioPlaySdWavExtended_methods" value="+ begin(): void&#xa;+ play(): bool&#xa;+ stop(): void&#xa;+ isPlaying(): bool&#xa;+ positionMillis(): uint32_t&#xa;+ update(): void (inherited)" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=10;fontColor=#ffffff;" parent="class_AudioPlaySdWavExtended" vertex="1">
+          <mxGeometry y="95" width="240" height="85" as="geometry"/>
+        </mxCell>
+
+        <!-- ENUMS SECTION -->
+
+        <!-- AppContext Enum -->
+        <mxCell id="enum_AppContext" value="&lt;&lt;enumeration&gt;&gt;&#xa;AppContext&#xa;___&#xa;HOME = 0&#xa;RECORDER = 1&#xa;LIVE = 2" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=60;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;rounded=1;fontSize=11;fontColor=#000000;fillColor=#ffcccc;strokeColor=#000000;strokeWidth=1;" parent="1" vertex="1">
+          <mxGeometry x="1050" y="30" width="150" height="120" as="geometry"/>
+        </mxCell>
+
+        <!-- ButtonState Enum -->
+        <mxCell id="enum_ButtonState" value="&lt;&lt;enumeration&gt;&gt;&#xa;ButtonState&#xa;___&#xa;NOT_PRESSED = 0&#xa;PRESSED = 1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=60;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;rounded=1;fontSize=11;fontColor=#000000;fillColor=#ffcccc;strokeColor=#000000;strokeWidth=1;" parent="1" vertex="1">
+          <mxGeometry x="1050" y="180" width="150" height="110" as="geometry"/>
+        </mxCell>
+
+        <!-- RecorderState Enum -->
+        <mxCell id="enum_RecorderState" value="&lt;&lt;enumeration&gt;&gt;&#xa;RecorderState&#xa;___&#xa;RECORDER_HOME = 0&#xa;RECORDER_RECORDING = 1&#xa;RECORDER_EDITING = 2" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=60;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;rounded=1;fontSize=10;fontColor=#000000;fillColor=#ffcccc;strokeColor=#000000;strokeWidth=1;" parent="1" vertex="1">
+          <mxGeometry x="1050" y="330" width="160" height="130" as="geometry"/>
+        </mxCell>
+
+        <!-- LiveState Enum -->
+        <mxCell id="enum_LiveState" value="&lt;&lt;enumeration&gt;&gt;&#xa;LiveState&#xa;___&#xa;LIVE_SLOT_VIEW = 0&#xa;LIVE_SAMPLE_SELECT = 1&#xa;LIVE_PLAYING = 2" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=60;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;rounded=1;fontSize=10;fontColor=#000000;fillColor=#ffcccc;strokeColor=#000000;strokeWidth=1;" parent="1" vertex="1">
+          <mxGeometry x="1050" y="500" width="160" height="130" as="geometry"/>
+        </mxCell>
+
+        <!-- RELATIONSHIPS/CONNECTORS -->
+
+        <!-- HomeScreen associations -->
+        <mxCell id="rel_HomeScreen_Controls" value="uses" style="endArrow=open;html=1;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0;entryY=1;entryDx=0;entryDy=0;dashed=0;endFill=0;strokeColor=#000000;strokeWidth=2;" parent="1" source="class_HomeScreen" target="class_Controls" edge="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="rel_HomeScreen_Screen" value="uses" style="endArrow=open;html=1;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;dashed=0;endFill=0;strokeColor=#000000;strokeWidth=2;" parent="1" source="class_HomeScreen" target="class_Screen" edge="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- RecorderScreen associations -->
+        <mxCell id="rel_RecorderScreen_Controls" value="uses" style="endArrow=open;html=1;exitX=0.33;exitY=0;exitDx=0;exitDy=0;entryX=0.67;entryY=1;entryDx=0;entryDy=0;dashed=0;endFill=0;strokeColor=#000000;strokeWidth=2;" parent="1" source="class_RecorderScreen" target="class_Controls" edge="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="rel_RecorderScreen_Screen" value="uses" style="endArrow=open;html=1;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;dashed=0;endFill=0;strokeColor=#000000;strokeWidth=2;" parent="1" source="class_RecorderScreen" target="class_Screen" edge="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="rel_RecorderScreen_AudioResources" value="uses" style="endArrow=open;html=1;exitX=0.67;exitY=0;exitDx=0;exitDy=0;entryX=0.33;entryY=1;entryDx=0;entryDy=0;dashed=0;endFill=0;strokeColor=#000000;strokeWidth=2;" parent="1" source="class_RecorderScreen" target="class_AudioResources" edge="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- RecorderScreen has-a components -->
+        <mxCell id="rel_RecorderScreen_VolumeBar" value="has-a" style="endArrow=open;html=1;exitX=0.25;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;dashed=0;endFill=0;strokeColor=#000000;strokeWidth=1.5;startArrow=diamond;startFill=1;" parent="1" source="class_RecorderScreen" target="class_VolumeBar" edge="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="rel_RecorderScreen_Waveform" value="has-a" style="endArrow=open;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;dashed=0;endFill=0;strokeColor=#000000;strokeWidth=1.5;startArrow=diamond;startFill=1;" parent="1" source="class_RecorderScreen" target="class_Waveform" edge="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="rel_RecorderScreen_WaveformSelector" value="has-a" style="endArrow=open;html=1;exitX=0.75;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;dashed=0;endFill=0;strokeColor=#000000;strokeWidth=1.5;startArrow=diamond;startFill=1;" parent="1" source="class_RecorderScreen" target="class_WaveformSelector" edge="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- RecorderScreen has-a WavFileWriter and NameGenerator -->
+        <mxCell id="rel_RecorderScreen_WavFileWriter" value="has-a *" style="endArrow=open;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;dashed=0;endFill=0;strokeColor=#000000;strokeWidth=1;" parent="1" source="class_RecorderScreen" target="class_WavFileWriter" edge="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="rel_RecorderScreen_NameGenerator" value="has-a" style="endArrow=open;html=1;exitX=0.25;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;dashed=0;endFill=0;strokeColor=#000000;strokeWidth=1.5;startArrow=diamond;startFill=1;" parent="1" source="class_RecorderScreen" target="class_NameGenerator" edge="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- LiveScreen associations -->
+        <mxCell id="rel_LiveScreen_Controls" value="uses" style="endArrow=open;html=1;exitX=0.33;exitY=0;exitDx=0;exitDy=0;entryX=1;entryY=1;entryDx=0;entryDy=0;dashed=0;endFill=0;strokeColor=#000000;strokeWidth=2;" parent="1" source="class_LiveScreen" target="class_Controls" edge="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="rel_LiveScreen_AudioResources" value="uses" style="endArrow=open;html=1;exitX=0.67;exitY=0;exitDx=0;exitDy=0;entryX=1;entryY=1;entryDx=0;entryDy=0;dashed=0;endFill=0;strokeColor=#000000;strokeWidth=2;" parent="1" source="class_LiveScreen" target="class_AudioResources" edge="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- LiveScreen has-a SampleSlot array -->
+        <mxCell id="rel_LiveScreen_SampleSlot" value="has-a [4]" style="endArrow=open;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;dashed=0;endFill=0;strokeColor=#000000;strokeWidth=1.5;startArrow=diamond;startFill=1;" parent="1" source="class_LiveScreen" target="class_SampleSlot" edge="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- VolumeBar uses Screen -->
+        <mxCell id="rel_VolumeBar_Screen" value="uses" style="endArrow=open;html=1;exitX=0;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;dashed=0;endFill=0;strokeColor=#000000;strokeWidth=1;" parent="1" source="class_VolumeBar" target="class_Screen" edge="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- Waveform uses Screen -->
+        <mxCell id="rel_Waveform_Screen" value="uses" style="endArrow=open;html=1;exitX=0;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;dashed=0;endFill=0;strokeColor=#000000;strokeWidth=1;" parent="1" source="class_Waveform" target="class_Screen" edge="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- WaveformSelector has-a Waveform -->
+        <mxCell id="rel_WaveformSelector_Waveform" value="uses *" style="endArrow=open;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;dashed=0;endFill=0;strokeColor=#000000;strokeWidth=1;" parent="1" source="class_WaveformSelector" target="class_Waveform" edge="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- WavFileWriter uses AudioResources (queue) -->
+        <mxCell id="rel_WavFileWriter_AudioResources" value="uses (queue)" style="endArrow=open;html=1;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.67;entryY=1;entryDx=0;entryDy=0;dashed=1;endFill=0;strokeColor=#666666;strokeWidth=1;" parent="1" source="class_WavFileWriter" target="class_AudioResources" edge="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- Note about AudioPlaySdWavExtended inheritance -->
+        <mxCell id="note_AudioPlay_Inheritance" value="extends&#xa;AudioStream" style="shape=note;whiteSpace=wrap;html=1;rounded=1;fontSize=9;align=center;fillColor=#ffffcc;strokeColor=#000000;" parent="1" vertex="1">
+          <mxGeometry x="900" y="1010" width="80" height="55" as="geometry"/>
+        </mxCell>
+
+        <!-- Controls uses Encoder (external library) -->
+        <mxCell id="note_Controls_Encoder" value="uses Encoder&#xa;library" style="shape=note;whiteSpace=wrap;html=1;rounded=1;fontSize=9;align=center;fillColor=#ffffcc;strokeColor=#000000;" parent="1" vertex="1">
+          <mxGeometry x="550" y="80" width="80" height="55" as="geometry"/>
+        </mxCell>
+
+        <!-- Screen uses U8G2 (external library) -->
+        <mxCell id="note_Screen_U8G2" value="uses U8G2&#xa;library" style="shape=note;whiteSpace=wrap;html=1;rounded=1;fontSize=9;align=center;fillColor=#ffffcc;strokeColor=#000000;" parent="1" vertex="1">
+          <mxGeometry x="250" y="80" width="60" height="55" as="geometry"/>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

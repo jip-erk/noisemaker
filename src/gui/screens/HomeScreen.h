@@ -4,25 +4,20 @@
 
 #include <Arduino.h>
 
-#include "../../hardware/Controls.h"
-#include "../../main.h"
 #include "../Screen.h"
 
 class HomeScreen {
    public:
-    typedef void (*NavigationCallback)(AppContext newContext);
+    HomeScreen();
+    HomeScreen(Screen *screen);
+    ~HomeScreen();
 
-    HomeScreen(Controls *keyboard, Screen *screen,
-               NavigationCallback navCallback = nullptr);
-
-    void handleEvent(Controls::ButtonEvent);
+    // UI Display methods
     void refresh();
-    
+    void drawMenu(const char **menuItems, int selectedIndex, int itemCount);
+
    private:
-    NavigationCallback _navCallback;
-    Controls *_keyboard;
     Screen *_screen;
-    int _selectedIndex = 0;
 };
 
 #endif

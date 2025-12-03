@@ -11,10 +11,10 @@
 #include <Wire.h>
 #include <usb_midi.h>
 
+#include "contexts/Home.h"
+#include "contexts/Recorder.h"
+#include "contexts/Live.h"
 #include "gui/Screen.h"
-#include "gui/screens/HomeScreen.h"
-#include "gui/screens/LiveScreen.h"
-#include "gui/screens/RecorderScreen.h"
 #include "hardware/Controls.h"
 #include "helper/AudioResources.h"
 
@@ -42,9 +42,9 @@ Controls controls;
 
 void changeContext(AppContext newContext);
 
-HomeScreen homeContext(&controls, &screen, changeContext);
-RecorderScreen recorderContext(&controls, &screen, changeContext);
-LiveScreen liveContext(&controls, &screen, changeContext);
+Home homeContext(&controls, &screen, changeContext);
+Recorder recorderContext(&controls, &screen, changeContext);
+Live liveContext(&controls, &screen, changeContext);
 AudioResources audioResources;
 
 void changeContext(AppContext newContext) {

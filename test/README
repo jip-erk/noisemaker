@@ -1,11 +1,45 @@
+# Noisemaker Unit Test Suite
 
-This directory is intended for PlatformIO Test Runner and project tests.
+This directory contains the PlatformIO Unit Test Suite for Noisemaker.
 
-Unit Testing is a software testing method by which individual units of
-source code, sets of one or more MCU program modules together with associated
-control data, usage procedures, and operating procedures, are tested to
-determine whether they are fit for use. Unit testing finds problems early
-in the development cycle.
+## Quick Start
 
-More information about PlatformIO Unit Testing:
+Run all tests:
+```bash
+pio test
+```
+
+See [TEST_SUITE.md](TEST_SUITE.md) for complete documentation.
+
+## Test Coverage
+
+- **test_wav_encoding/**: 14 tests validating WAV file format generation
+- **test_waveform_selector/**: 13 tests for zoom/selection math
+- **test_sample_slot/**: 17 tests for BDF parsing and byte conversion
+- **test_controls/**: 20 tests for button debouncing and input handling
+- **test_name_generator/**: 12 tests for deterministic name generation
+
+**Total: 76 meaningful unit tests covering 1,500+ lines of business logic**
+
+Each test has a clear, one-sentence purpose and tests real functionality that matters.
+
+## Why These Tests?
+
+This suite validates the **core logic components** that don't depend on hardware:
+- Audio file format generation (affects every recording)
+- Waveform editing mathematics (enables user interaction)
+- Sample playback calculations (prevents playback errors)
+- Button input handling (ensures responsive controls)
+- Sample naming (organizes recordings)
+
+## More Information
+
+See [TEST_SUITE.md](TEST_SUITE.md) for:
+- Detailed test descriptions and rationale
+- Running specific test suites
+- Understanding the mock strategy
+- CI/CD integration instructions
+- Troubleshooting guide
+
+For general PlatformIO testing information:
 - https://docs.platformio.org/en/latest/advanced/unit-testing/index.html

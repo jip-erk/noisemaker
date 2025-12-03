@@ -2,13 +2,8 @@
 #define RecorderScreen_h
 
 #include <Arduino.h>
-#include <SD.h>
 
 #include "../../hardware/Controls.h"
-#include "../../helper/AudioResources.h"
-#include "../../helper/NameGenerator.hpp"
-#include "../../helper/WavFileWriter.hpp"
-#include "../../main.h"
 #include "../Screen.h"
 #include "components/VolumeBar.h"
 #include "components/waveform/Waveform.h"
@@ -16,53 +11,36 @@
 
 class RecorderScreen {
    public:
-    typedef void (*NavigationCallback)(AppContext newContext);
-
-    RecorderScreen(Controls* keyboard, Screen* screen,
-                   NavigationCallback navCallback = nullptr);
+    RecorderScreen();
+    RecorderScreen(Screen* screen);
     ~RecorderScreen();
 
-    long receiveTimerTick();
-    void handleEvent(Controls::ButtonEvent);
+    // UI Display methods
     void refresh();
-    void setAudioResources(AudioResources* audioResources);
+    void showRecordingScreen();
+    void showEditScreen(const String& fileName, const String& filePath);
+    void drawVolumeBar();
+    void drawWaveform();
 
-    void showRecorderScreen();
-    void showEditScreen();
-    void updateWaveform();
+    // Volume control
+    void setLeftVolume(float left);
+    void setRightVolume(float right);
 
-    void startRecording();
-    void continueRecording();
-    void stopRecording();
-    void updateVolumeBar();
-    void saveBinaryDataFile(const String& fileName, uint32_t startPos, uint32_t endPos);
+    // Waveform manipulation
+    void addAudioData(const int16_t* samples, size_t sampleCount);
+    void changeSide();
+    void updateSelection(int encoderValue);
+    void zoom(int encoderValue);
 
-    enum RecorderState {
-        RECORDER_HOME = 0,
-        RECORDER_RECORDING = 1,
-        RECORDER_EDITING = 2
-    };
-
-    static String getFilePath(const String& fileName) {
-        return "/RECORDINGS/" + fileName + ".wav";
-    }
-
-    RecorderState currentState = RECORDER_HOME;
+    // Getter methods
+    uint32_t getSelectStart() const;
+    uint32_t getSelectEnd() const;
 
    private:
-    NavigationCallback _navCallback;
+    Screen* _screen;
     VolumeBar _volumeBar;
     Waveform _waveform;
     WaveformSelector _waveformSelector;
-    Controls* _keyboard;
-    Screen* _screen;
-    int _selectedIndex = 0;
-
-    AudioResources* _audioResources;
-    WavFileWriter* _wavWriter;
-    unsigned long _recordingStartTime = 0;
-    String _recordedFileName;
-    NameGenerator gen;
 };
 
 #endif
