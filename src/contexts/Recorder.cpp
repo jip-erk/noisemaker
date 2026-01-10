@@ -89,8 +89,9 @@ void Recorder::handleEvent(Controls::ButtonEvent event) {
                     _recorderScreen.getSelectStart() * 2 + WAV_HEADER_SIZE;
                 uint32_t endByte =
                     _recorderScreen.getSelectEnd() * 2 + WAV_HEADER_SIZE;
-                _audioResources->playWav1.play(path.c_str(), startByte, endByte,
-                                               1.0);
+                // _audioResources->playWav1.play(path.c_str(), startByte,
+                // endByte,
+                //                                1.0);
             }
         }
         return;

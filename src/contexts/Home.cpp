@@ -1,7 +1,7 @@
 #include "Home.h"
 
 // Menu items for the home screen
-const char *Home::MENU_ITEMS[NUM_MENU_ITEMS] = {"Recorder", "Live"};
+const char *Home::MENU_ITEMS[NUM_MENU_ITEMS + 1] = {"Recorder", "Live", nullptr};
 
 Home::Home(Controls* keyboard, Screen* screen, NavigationCallback navCallback) {
     _keyboard = keyboard;

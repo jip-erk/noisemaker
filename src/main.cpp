@@ -12,8 +12,8 @@
 #include <usb_midi.h>
 
 #include "contexts/Home.h"
-#include "contexts/Recorder.h"
 #include "contexts/Live.h"
+#include "contexts/Recorder.h"
 #include "gui/Screen.h"
 #include "hardware/Controls.h"
 #include "helper/AudioResources.h"
@@ -23,7 +23,7 @@
 #define SDCARD_SCK_PIN 13
 
 // Audio configuration constants
-#define AUDIO_MEMORY_BLOCKS 100
+#define AUDIO_MEMORY_BLOCKS 40
 #define AUDIO_SHIELD_INIT_DELAY_MS 100
 #define DEFAULT_MIC_GAIN 10
 
@@ -99,8 +99,6 @@ void setup(void) {
     delay(AUDIO_SHIELD_INIT_DELAY_MS);
     audioResources.audioShield.inputSelect(AUDIO_INPUT_MIC);
     audioResources.audioShield.micGain(DEFAULT_MIC_GAIN);
-    // USB audio doesn't use audioShield volume control - volume controlled by
-    // host
 
     SPI.setMOSI(SDCARD_MOSI_PIN);
     SPI.setSCK(SDCARD_SCK_PIN);
@@ -108,7 +106,6 @@ void setup(void) {
         // stop here if no SD card, but print a message
         while (1) {
             Serial.println("Unable to access the SD card");
-            Serial.println(SDCARD_CS_PIN);
             delay(500);
         }
     }
@@ -118,7 +115,6 @@ void setup(void) {
 
     globalTickTimer.begin(globalTick, globalTickInterval);
 
-    // Set up audio resources for recorder and live screen
     recorderContext.setAudioResources(&audioResources);
     liveContext.setAudioResources(&audioResources);
 
@@ -159,16 +155,6 @@ void loop(void) {
     }
 
     // Handle MIDI input (only in LIVE mode)
-    if (currentAppContext == AppContext::LIVE) {
-        while (usbMIDI.read()) {
-            byte type = usbMIDI.getType();
-            if (type == usbMIDI.NoteOn) {
-                byte note = usbMIDI.getData1();
-                byte velocity = usbMIDI.getData2();
-                liveContext.handleMidiNote(note, velocity);
-            }
-        }
-    }
 
     controls.tick();
 }

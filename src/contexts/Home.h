@@ -3,16 +3,17 @@
 
 #include <Arduino.h>
 
-#include "../hardware/Controls.h"
-#include "../main.h"
 #include "../gui/Screen.h"
 #include "../gui/screens/HomeScreen.h"
+#include "../hardware/Controls.h"
+#include "../main.h"
 
 class Home {
    public:
     typedef void (*NavigationCallback)(AppContext newContext);
 
-    Home(Controls *keyboard, Screen *screen, NavigationCallback navCallback = nullptr);
+    Home(Controls* keyboard, Screen* screen,
+         NavigationCallback navCallback = nullptr);
 
     void refresh();
     void handleEvent(Controls::ButtonEvent);
@@ -25,14 +26,15 @@ class Home {
 
    private:
     NavigationCallback _navCallback;
-    Controls *_keyboard;
-    Screen *_screen;
+    Controls* _keyboard;
+    Screen* _screen;
     HomeScreen _homeScreen;
 
     // Menu state
     int _selectedIndex = 0;
     static const int NUM_MENU_ITEMS = 2;
-    static const char *MENU_ITEMS[NUM_MENU_ITEMS];
+    static const char*
+        MENU_ITEMS[NUM_MENU_ITEMS + 1];  // +1 for null terminator
 
     // Private methods
     void drawMenu();

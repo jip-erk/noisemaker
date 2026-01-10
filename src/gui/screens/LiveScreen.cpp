@@ -1,12 +1,8 @@
 #include "LiveScreen.h"
 
-LiveScreen::LiveScreen() {
-    _screen = nullptr;
-}
+LiveScreen::LiveScreen() { _screen = nullptr; }
 
-LiveScreen::LiveScreen(Screen *screen) {
-    _screen = screen;
-}
+LiveScreen::LiveScreen(Screen* screen) { _screen = screen; }
 
 LiveScreen::~LiveScreen() {
     // Cleanup if needed
@@ -17,7 +13,8 @@ void LiveScreen::refresh() {
     // Will be drawn by drawSlotView with actual slot data from context
 }
 
-void LiveScreen::drawSlotView(const SampleSlot *slots, int selectedSlotIndex, int numSlots, const char **slotLabels) {
+void LiveScreen::drawSlotView(const SampleSlot* slots, int selectedSlotIndex,
+                              int numSlots, const char** slotLabels) {
     _screen->clear();
     _screen->setHeaderFont();
     _screen->drawStr(0, 10, "LIVE - Slots");
@@ -36,7 +33,7 @@ void LiveScreen::drawSlotView(const SampleSlot *slots, int selectedSlotIndex, in
         String slotInfo = String(slotLabels[i]) + ":";
         if (slots[i].isAssigned) {
             // Show sample name
-            String displayName = slots[i].sampleName;
+            String displayName = slots[i].fileName;
             if (displayName.length() > 10) {
                 displayName = displayName.substring(0, 7) + "...";
             }
@@ -57,7 +54,8 @@ void LiveScreen::drawSlotView(const SampleSlot *slots, int selectedSlotIndex, in
     _screen->display();
 }
 
-void LiveScreen::drawSampleSelect(const String *fileList, int selectedFileIndex, int fileCount) {
+void LiveScreen::drawSampleSelect(const String* fileList, int selectedFileIndex,
+                                  int fileCount) {
     _screen->clear();
     _screen->setHeaderFont();
     _screen->drawStr(0, 10, "Select Sample");
@@ -103,6 +101,57 @@ void LiveScreen::drawSampleSelect(const String *fileList, int selectedFileIndex,
 
     // Help text
     _screen->drawStr(0, 60, "B2:OK B3:Clear");
+
+    _screen->display();
+}
+
+void LiveScreen::drawSequencer(const bool sequencerGrid[8][16], int selectedRow,
+                               int selectedCol) {
+    _screen->clear();
+    _screen->setHeaderFont();
+    _screen->drawStr(0, 10, "Seq");
+    _screen->setNormalFont();
+
+    const int rowLabelWidth = 14;  // Space for "01" label
+    const int cellWidth = 7;       // Width of each grid cell
+    const int cellHeight = 7;      // Height of each grid cell
+    const int gridStartX = rowLabelWidth + 1;
+    const int gridStartY = 14;
+
+    // Draw row labels and cells
+    for (int row = 0; row < 8; row++) {
+        int yPos = gridStartY + (row * cellHeight);
+
+        // Draw row label (01-08)
+        char rowLabel[3];
+        sprintf(rowLabel, "%02d", row + 1);
+        _screen->drawStr(0, yPos + 6, rowLabel);
+
+        // Draw grid cells for this row
+        for (int col = 0; col < 16; col++) {
+            int xPos = gridStartX + (col * cellWidth);
+
+            if (row == selectedRow && col == selectedCol) {
+                // Highlight selected cell with inverted box
+                _screen->drawBox(xPos, yPos, cellWidth, cellHeight);
+                _screen->getDisplay()->setDrawColor(0);  // Invert
+                if (sequencerGrid[row][col]) {
+                    _screen->drawBox(xPos + 1, yPos + 1, cellWidth - 2,
+                                     cellHeight - 2);
+                }
+                _screen->getDisplay()->setDrawColor(1);  // Reset
+            } else {
+                // Draw normal cell
+                if (sequencerGrid[row][col]) {
+                    _screen->drawBox(xPos + 1, yPos + 1, cellWidth - 2,
+                                     cellHeight - 2);
+                } else {
+                    // Draw border only
+                    _screen->drawBox(xPos, yPos, cellWidth, cellHeight);
+                }
+            }
+        }
+    }
 
     _screen->display();
 }

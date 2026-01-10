@@ -16,6 +16,7 @@ class LiveScreen {
     void refresh();
     void drawSlotView(const SampleSlot *slots, int selectedSlotIndex, int numSlots, const char **slotLabels);
     void drawSampleSelect(const String *fileList, int selectedFileIndex, int fileCount);
+    void drawSequencer(const bool sequencerGrid[8][16], int selectedRow, int selectedCol);
 
    private:
     Screen *_screen;

@@ -4,9 +4,9 @@
 const uint8_t Live::DEFAULT_MIDI_NOTES[NUM_SLOTS] = {60, 61, 62, 63};
 
 // Slot labels for display
-const char *Live::SLOT_LABELS[NUM_SLOTS] = {"kick", "snare", "hat", "perc"};
+const char* Live::SLOT_LABELS[NUM_SLOTS] = {"kick", "snare", "hat", "perc"};
 
-Live::Live(Controls *keyboard, Screen *screen, NavigationCallback navCallback) {
+Live::Live(Controls* keyboard, Screen* screen, NavigationCallback navCallback) {
     _keyboard = keyboard;
     _screen = screen;
     _navCallback = navCallback;
@@ -26,10 +26,11 @@ Live::~Live() {
 void Live::refresh() {
     currentState = LIVE_SLOT_VIEW;
     _selectedSlotIndex = 0;
-    _liveScreen.drawSlotView(_slots, _selectedSlotIndex, NUM_SLOTS, SLOT_LABELS);
+    _liveScreen.drawSlotView(_slots, _selectedSlotIndex, NUM_SLOTS,
+                             SLOT_LABELS);
 }
 
-void Live::setAudioResources(AudioResources *audioResources) {
+void Live::setAudioResources(AudioResources* audioResources) {
     _audioResources = audioResources;
 }
 
@@ -41,13 +42,6 @@ void Live::handleMidiNote(uint8_t note, uint8_t velocity) {
     for (int i = 0; i < NUM_SLOTS; i++) {
         if (_slots[i].midiNote == note && _slots[i].isAssigned) {
             playSlot(i);
-
-            Serial.print("MIDI trigger slot ");
-            Serial.print(i);
-            Serial.print(" (");
-            Serial.print(SLOT_LABELS[i]);
-            Serial.print(") with note ");
-            Serial.println(note);
             break;
         }
     }
@@ -65,7 +59,8 @@ void Live::handleEvent(Controls::ButtonEvent event) {
         } else if (currentState == LIVE_SAMPLE_SELECT) {
             // Return to slot view
             currentState = LIVE_SLOT_VIEW;
-            _liveScreen.drawSlotView(_slots, _selectedSlotIndex, NUM_SLOTS, SLOT_LABELS);
+            _liveScreen.drawSlotView(_slots, _selectedSlotIndex, NUM_SLOTS,
+                                     SLOT_LABELS);
         }
         return;
     }
@@ -77,12 +72,14 @@ void Live::handleEvent(Controls::ButtonEvent event) {
             loadFileList();
             currentState = LIVE_SAMPLE_SELECT;
             _selectedFileIndex = 0;
-            _liveScreen.drawSampleSelect(_fileList, _selectedFileIndex, _fileCount);
+            _liveScreen.drawSampleSelect(_fileList, _selectedFileIndex,
+                                         _fileCount);
         } else if (currentState == LIVE_SAMPLE_SELECT) {
             // Assign selected sample to slot
             assignSampleToSlot();
             currentState = LIVE_SLOT_VIEW;
-            _liveScreen.drawSlotView(_slots, _selectedSlotIndex, NUM_SLOTS, SLOT_LABELS);
+            _liveScreen.drawSlotView(_slots, _selectedSlotIndex, NUM_SLOTS,
+                                     SLOT_LABELS);
         }
         return;
     }
@@ -98,7 +95,8 @@ void Live::handleEvent(Controls::ButtonEvent event) {
             // Clear the slot
             clearSlot(_selectedSlotIndex);
             currentState = LIVE_SLOT_VIEW;
-            _liveScreen.drawSlotView(_slots, _selectedSlotIndex, NUM_SLOTS, SLOT_LABELS);
+            _liveScreen.drawSlotView(_slots, _selectedSlotIndex, NUM_SLOTS,
+                                     SLOT_LABELS);
         }
         return;
     }
@@ -107,12 +105,16 @@ void Live::handleEvent(Controls::ButtonEvent event) {
     if (event.buttonId == 0 && event.encoderValue != 0) {
         if (currentState == LIVE_SLOT_VIEW) {
             _selectedSlotIndex += event.encoderValue;
-            _selectedSlotIndex = constrain(_selectedSlotIndex, 0, NUM_SLOTS - 1);
-            _liveScreen.drawSlotView(_slots, _selectedSlotIndex, NUM_SLOTS, SLOT_LABELS);
+            _selectedSlotIndex =
+                constrain(_selectedSlotIndex, 0, NUM_SLOTS - 1);
+            _liveScreen.drawSlotView(_slots, _selectedSlotIndex, NUM_SLOTS,
+                                     SLOT_LABELS);
         } else if (currentState == LIVE_SAMPLE_SELECT) {
             _selectedFileIndex += event.encoderValue;
-            _selectedFileIndex = constrain(_selectedFileIndex, 0, max(0, _fileCount - 1));
-            _liveScreen.drawSampleSelect(_fileList, _selectedFileIndex, _fileCount);
+            _selectedFileIndex =
+                constrain(_selectedFileIndex, 0, max(0, _fileCount - 1));
+            _liveScreen.drawSampleSelect(_fileList, _selectedFileIndex,
+                                         _fileCount);
         }
         return;
     }
@@ -158,11 +160,12 @@ void Live::loadFileList() {
 void Live::assignSampleToSlot() {
     if (_selectedFileIndex >= _fileCount) return;
 
-    String fileName = getFileNameWithoutExtension(_fileList[_selectedFileIndex]);
-    _slots[_selectedSlotIndex].assignSample(fileName, DEFAULT_MIDI_NOTES[_selectedSlotIndex]);
+    String fullFileName = _fileList[_selectedFileIndex];
+    _slots[_selectedSlotIndex].assignSample(
+        fullFileName, DEFAULT_MIDI_NOTES[_selectedSlotIndex]);
 
     Serial.print("Assigned '");
-    Serial.print(fileName);
+    Serial.print(fullFileName);
     Serial.print("' to slot ");
     Serial.println(_selectedSlotIndex);
 }
@@ -183,62 +186,68 @@ void Live::playSlot(int slotIndex) {
     if (!_slots[slotIndex].isAssigned) return;
 
     // Get the appropriate WAV player for this slot
-    AudioPlaySdWavExtended *player = nullptr;
+    AudioPlaySdWav* player = nullptr;
     switch (slotIndex) {
         case 0:
-            player = &_audioResources->playWav1;
+            player = &_audioResources->playSdWav;
             break;
         case 1:
-            player = &_audioResources->playWav2;
+            player = &_audioResources->playSdWav1;
             break;
         case 2:
-            player = &_audioResources->playWav3;
+            player = &_audioResources->playSdWav2;
             break;
         case 3:
-            player = &_audioResources->playWav4;
+            player = &_audioResources->playSdWav3;
             break;
     }
 
     if (player) {
         String wavPath = _slots[slotIndex].getWavPath();
-        uint32_t startByte = _slots[slotIndex].getStartByte();
-        uint32_t endByte = _slots[slotIndex].getEndByte();
 
-        Serial.print("Playing slot ");
         Serial.print(slotIndex);
         Serial.print(": ");
         Serial.print(wavPath);
-        Serial.print(" [");
-        Serial.print(startByte);
-        Serial.print(" - ");
-        Serial.print(endByte);
-        Serial.println("]");
 
-        player->play(wavPath.c_str(), startByte, endByte, 1.0);
+        AudioNoInterrupts();
+
+        player->play(wavPath.c_str());
+        // Trigger envelope to allow audio through
+        AudioEffectEnvelope* env = _audioResources->getEnvelope(slotIndex);
+        if (env) {
+            env->noteOn();
+        }
+        AudioInterrupts();
     }
 }
 
 void Live::stopSlot(int slotIndex) {
     if (!_audioResources || slotIndex < 0 || slotIndex >= NUM_SLOTS) return;
 
-    AudioPlaySdWavExtended *player = nullptr;
+    AudioPlaySdWav* player = nullptr;
     switch (slotIndex) {
         case 0:
-            player = &_audioResources->playWav1;
+            player = &_audioResources->playSdWav;
             break;
         case 1:
-            player = &_audioResources->playWav2;
+            player = &_audioResources->playSdWav1;
             break;
         case 2:
-            player = &_audioResources->playWav3;
+            player = &_audioResources->playSdWav2;
             break;
         case 3:
-            player = &_audioResources->playWav4;
+            player = &_audioResources->playSdWav3;
             break;
     }
 
     if (player && player->isPlaying()) {
         player->stop();
+
+        // Release envelope gate
+        AudioEffectEnvelope* env = _audioResources->getEnvelope(slotIndex);
+        if (env) {
+            env->noteOff();
+        }
     }
 }
 
@@ -248,7 +257,7 @@ void Live::stopAllSlots() {
     }
 }
 
-String Live::getFileNameWithoutExtension(const String &fileName) {
+String Live::getFileNameWithoutExtension(const String& fileName) {
     int dotIndex = fileName.lastIndexOf('.');
     if (dotIndex > 0) {
         return fileName.substring(0, dotIndex);
