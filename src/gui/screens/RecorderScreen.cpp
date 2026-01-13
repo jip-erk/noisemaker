@@ -14,8 +14,7 @@ RecorderScreen::RecorderScreen(Screen* screen) {
     _waveformSelector = WaveformSelector(&_waveform);
 }
 
-RecorderScreen::~RecorderScreen() {
-}
+RecorderScreen::~RecorderScreen() {}
 
 void RecorderScreen::refresh() {
     _screen->clear();
@@ -39,7 +38,8 @@ void RecorderScreen::showRecordingScreen() {
     _screen->display();
 }
 
-void RecorderScreen::showEditScreen(const String& fileName, const String& filePath) {
+void RecorderScreen::showEditScreen(const String& fileName,
+                                    const String& filePath) {
     _screen->clear();
     _screen->drawStr(0, 10, fileName.c_str());
 
@@ -51,29 +51,17 @@ void RecorderScreen::showEditScreen(const String& fileName, const String& filePa
     _screen->display();
 }
 
-void RecorderScreen::drawVolumeBar() {
-    _volumeBar.drawVolumeBar();
-}
+void RecorderScreen::drawVolumeBar() { _volumeBar.drawVolumeBar(); }
 
-void RecorderScreen::drawWaveform() {
-    _waveform.drawWaveform();
-}
+void RecorderScreen::drawWaveform() { _waveform.drawWaveform(); }
 
-void RecorderScreen::setLeftVolume(float left) {
-    _volumeBar.setLeftVolume(left);
-}
-
-void RecorderScreen::setRightVolume(float right) {
-    _volumeBar.setRightVolume(right);
-}
+void RecorderScreen::setVolume(float volume) { _volumeBar.setVolume(volume); }
 
 void RecorderScreen::addAudioData(const int16_t* samples, size_t sampleCount) {
     _waveform.addAudioData(samples, sampleCount);
 }
 
-void RecorderScreen::changeSide() {
-    _waveformSelector.changeSide();
-}
+void RecorderScreen::changeSide() { _waveformSelector.changeSide(); }
 
 void RecorderScreen::updateSelection(int encoderValue) {
     _waveformSelector.updateSelection(encoderValue);

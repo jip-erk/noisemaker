@@ -11,8 +11,7 @@ class VolumeBar {
     VolumeBar(Screen *screen);
     VolumeBar(Screen *screen, int x, int y, int width, int height);
     void drawVolumeBar();
-    void setLeftVolume(float left);
-    void setRightVolume(float right);
+    void setVolume(float volume);
 
    private:
     void drawBar(int x, int y, float value);
@@ -22,8 +21,7 @@ class VolumeBar {
     int _y = 0;
     int _width = 100;
     int _height = 10;
-    float _leftVolume = 0.0;
-    float _rightVolume = 0.0;
+    float _volume = 0.0;
 };
 
 #endif

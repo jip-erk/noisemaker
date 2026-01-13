@@ -21,7 +21,6 @@ class AudioResources {
     AudioInputI2S audioInput;
     AudioControlSGTL5000 audioShield;
     AudioAnalyzePeak peak1;
-    AudioAnalyzePeak peak2;
 
     AudioPlaySdWav playSdWav;
     AudioPlaySdWav playSdWav1;
@@ -39,7 +38,7 @@ class AudioResources {
     AudioMixer4 recordMixer;
     AudioMixer4 recordInputMixer;
 
-    AudioConnection* patchCord[9];
+    AudioConnection* patchCord[10];
 };
 
 #endif

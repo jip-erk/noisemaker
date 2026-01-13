@@ -140,6 +140,10 @@ void sendTickToActiveContext() {
             globalTickIntervalNew = recorderContext.receiveTimerTick();
             updateTickInterval(globalTickIntervalNew);
             break;
+        case AppContext::LIVE:
+            globalTickIntervalNew = liveContext.receiveTimerTick();
+            updateTickInterval(globalTickIntervalNew);
+            break;
         default:
             break;
     }
@@ -153,8 +157,6 @@ void loop(void) {
         ticked = false;
         sendTickToActiveContext();
     }
-
-    // Handle MIDI input (only in LIVE mode)
 
     controls.tick();
 }

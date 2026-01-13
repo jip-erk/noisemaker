@@ -3,7 +3,7 @@
 
 #include <Arduino.h>
 
-#include "../../helper/SampleSlot.hpp"
+#include "../../helper/Track.hpp"
 #include "../Screen.h"
 
 class LiveScreen {
@@ -14,9 +14,9 @@ class LiveScreen {
 
     // UI Display methods
     void refresh();
-    void drawSlotView(const SampleSlot *slots, int selectedSlotIndex, int numSlots, const char **slotLabels);
+    void drawTrackView(const Track *tracks, int selectedTrackIndex, int numTracks, const char **trackLabels);
     void drawSampleSelect(const String *fileList, int selectedFileIndex, int fileCount);
-    void drawSequencer(const bool sequencerGrid[8][16], int selectedRow, int selectedCol);
+    void drawSequencer(const bool sequencerGrid[][16], int selectedTrack, int currentStep, int currentBPM, bool isPlaying, int numTracks, int numSteps);
 
    private:
     Screen *_screen;

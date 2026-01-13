@@ -23,8 +23,7 @@ class RecorderScreen {
     void drawWaveform();
 
     // Volume control
-    void setLeftVolume(float left);
-    void setRightVolume(float right);
+    void setVolume(float volume);
 
     // Waveform manipulation
     void addAudioData(const int16_t* samples, size_t sampleCount);

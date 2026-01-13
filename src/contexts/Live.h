@@ -8,7 +8,7 @@
 #include "../gui/screens/LiveScreen.h"
 #include "../hardware/Controls.h"
 #include "../helper/AudioResources.h"
-#include "../helper/SampleSlot.hpp"
+#include "../helper/Track.hpp"
 #include "../main.h"
 
 class Live {
@@ -21,17 +21,16 @@ class Live {
 
     void refresh();
     void handleEvent(Controls::ButtonEvent);
-    void handleMidiNote(uint8_t note, uint8_t velocity);
     void setAudioResources(AudioResources* audioResources);
+    long receiveTimerTick();
 
     enum LiveState {
-        LIVE_SLOT_VIEW = 0,      // Viewing/selecting slots
-        LIVE_SAMPLE_SELECT = 1,  // Selecting a sample for a slot
-        LIVE_PLAYING = 2,        // Currently playing samples
-        LIVE_SEQUENCER = 3       // Sequencer grid view
+        LIVE_TRACK_VIEW = 0,     // Viewing/selecting tracks
+        LIVE_SAMPLE_SELECT = 1,  // Selecting a sample for a track
+        LIVE_SEQUENCER = 2       // Sequencer grid view
     };
 
-    LiveState currentState = LIVE_SLOT_VIEW;
+    LiveState currentState = LIVE_TRACK_VIEW;
 
    private:
     NavigationCallback _navCallback;
@@ -40,17 +39,20 @@ class Live {
     AudioResources* _audioResources;
     LiveScreen _liveScreen;
 
-    // Sample slot management - supports 14 simultaneous playback
-    static const int NUM_SLOTS = 4;
-    SampleSlot _slots[NUM_SLOTS];
-    int _selectedSlotIndex = 0;
+    // Track management
+    static const int NUM_TRACKS = 4;
+    static const int NUM_STEPS = 16;
+    Track _tracks[NUM_TRACKS];
+    int _selectedTrackIndex = 0;
 
-    // Pointers to audio players for quick access (cached for minimal latency)
-    // Default MIDI note mappings
-    static const uint8_t DEFAULT_MIDI_NOTES[NUM_SLOTS];
+    // Track labels for display
+    static const char* TRACK_LABELS[NUM_TRACKS];
 
-    // Slot labels for display
-    static const char* SLOT_LABELS[NUM_SLOTS];
+    // Sequencer data
+    bool _sequencerGrid[NUM_TRACKS][NUM_STEPS];  // Step pattern data
+    int _currentStep = 0;                         // Playhead position
+    int _currentBPM = 120;                        // BPM (60-180)
+    bool _isPlaying = false;                      // Playback state
 
     // File list for sample selection
     int _selectedFileIndex = 0;
@@ -59,13 +61,20 @@ class Live {
 
     // Private methods - business logic
     void loadFileList();
-    void assignSampleToSlot();
-    void clearSlot(int slotIndex);
-    void playSlot(int slotIndex);
-    void stopSlot(int slotIndex);
-    void stopAllSlots();
+    void assignSampleToTrack();
+    void clearTrack(int trackIndex);
+    void playTrack(int trackIndex);
+    void stopTrack(int trackIndex);
+    void stopAllTracks();
     String getFileNameWithoutExtension(const String& fileName);
-    void updateSlotDisplay();
+    void updateTrackDisplay();
+
+    // Sequencer methods
+    void startPlayback();
+    void stopPlayback();
+    void toggleStep(int track, int step);
+    void advanceStep();
+    int calculateStepIntervalMicros();
 };
 
 #endif

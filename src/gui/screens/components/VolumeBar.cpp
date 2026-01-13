@@ -2,13 +2,12 @@
 
 VolumeBar::VolumeBar() : _screen(nullptr) {}
 
-VolumeBar::VolumeBar(Screen *screen) : _screen(screen) {}
+VolumeBar::VolumeBar(Screen* screen) : _screen(screen) {}
 
-VolumeBar::VolumeBar(Screen *screen, int x, int y, int width, int height)
+VolumeBar::VolumeBar(Screen* screen, int x, int y, int width, int height)
     : _screen(screen), _x(x), _y(y), _width(width), _height(height) {}
 
-void VolumeBar::setLeftVolume(float left) { _leftVolume = left; }
-void VolumeBar::setRightVolume(float right) { _rightVolume = right; }
+void VolumeBar::setVolume(float volume) { _volume = volume; }
 
 void VolumeBar::drawVolumeBar() {
     if (!_screen) return;
@@ -17,8 +16,8 @@ void VolumeBar::drawVolumeBar() {
     _screen->getDisplay()->setDrawColor(1);
     _screen->getDisplay()->drawRBox(_x, _y, _width, _height, 2);
 
-    drawBar(_x + 2, _y + 1, _leftVolume);
-    drawBar(_x + 2, _y + 6, _rightVolume);
+    drawBar(_x + 2, _y + 1, _volume);
+    drawBar(_x + 2, _y + 6, _volume);
 
     _screen->getDisplay()->setDrawColor(1);
 }

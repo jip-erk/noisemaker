@@ -208,13 +208,8 @@ void Recorder::updateVolumeBar() {
     if (!_audioResources || currentState != RECORDER_HOME) return;
 
     if (_audioResources->peak1.available()) {
-        float left = _audioResources->peak1.read();
-        _recorderScreen.setLeftVolume(left);
-    }
-
-    if (_audioResources->peak2.available()) {
-        float right = _audioResources->peak2.read();
-        _recorderScreen.setRightVolume(right);
+        float volume = _audioResources->peak1.read();
+        _recorderScreen.setVolume(volume);
     }
 
     _recorderScreen.drawVolumeBar();

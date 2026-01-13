@@ -2,6 +2,15 @@
 
 Controls* Controls::instance = nullptr;
 
+// LED pin mapping for buttons 0-5: (0=encoder, 1-5=buttons)
+const int Controls::ledPinMap[7] = {-1,
+                                    Controls::ledPin1,
+                                    Controls::ledPin2,
+                                    Controls::ledPin3,
+                                    Controls::ledPin4,
+                                    -1,
+                                    -1};
+
 Controls::Controls()
     : encoder(encoderPinA, encoderPinB),
       lastEncoderValue(0),
@@ -12,20 +21,41 @@ Controls::Controls()
     pinMode(buttonPin1, INPUT_PULLUP);
     pinMode(buttonPin2, INPUT_PULLUP);
     pinMode(buttonPin3, INPUT_PULLUP);
+    pinMode(buttonPin4, INPUT_PULLUP);
+    pinMode(buttonPin5, INPUT_PULLUP);
+
+    pinMode(ledPin1, OUTPUT);
+    pinMode(ledPin2, OUTPUT);
+    pinMode(ledPin3, OUTPUT);
+    pinMode(ledPin4, OUTPUT);
 
     // Initialize button states
     button1State = false;
     button2State = false;
     button3State = false;
+    button4State = false;
+    button5State = false;
 
     button1LastState = false;
     button2LastState = false;
     button3LastState = false;
+    button4LastState = false;
+    button5LastState = false;
 
     // Initialize debounce times
     button1LastDebounceTime = 0;
     button2LastDebounceTime = 0;
     button3LastDebounceTime = 0;
+    button4LastDebounceTime = 0;
+    button5LastDebounceTime = 0;
+
+    // Setup LED pins as outputs
+
+    digitalWrite(ledPin1, LOW);
+    digitalWrite(ledPin2,
+                 LOW);  // LED on pin 20 OFF by default (cathode wired to pin)
+    digitalWrite(ledPin3, LOW);
+    digitalWrite(ledPin4, LOW);
 }
 
 void Controls::tick() {
@@ -51,6 +81,10 @@ void Controls::tick() {
                  button2LastDebounceTime);
     handleButton(3, buttonPin3, button3State, button3LastState,
                  button3LastDebounceTime);
+    handleButton(4, buttonPin4, button4State, button4LastState,
+                 button4LastDebounceTime);
+    handleButton(5, buttonPin5, button5State, button5LastState,
+                 button5LastDebounceTime);
 }
 
 void Controls::handleButton(uint8_t buttonId, uint8_t pin, bool& currentState,
@@ -89,6 +123,8 @@ Controls::ButtonEvent Controls::createEvent(uint8_t buttonId, ButtonState state,
     event.button1Held = button1State;
     event.button2Held = button2State;
     event.button3Held = button3State;
+    event.button4Held = button4State;
+    event.button5Held = button5State;
 
     return event;
 }
@@ -105,6 +141,10 @@ bool Controls::isDown(uint8_t buttonId) {
             return button2State;
         case 3:
             return button3State;
+        case 4:
+            return button4State;
+        case 5:
+            return button5State;
         default:
             return false;
     }
@@ -123,5 +163,13 @@ uint8_t Controls::getButtonMask() {
     if (button1State) mask |= (1 << 0);  // Bit 0
     if (button2State) mask |= (1 << 1);  // Bit 1
     if (button3State) mask |= (1 << 2);  // Bit 2
+    if (button4State) mask |= (1 << 3);  // Bit 3
+    if (button5State) mask |= (1 << 4);  // Bit 4
     return mask;
+}
+
+void Controls::triggerLedForButton(uint8_t buttonId, bool isPressed) {
+    if (buttonId < 7 && ledPinMap[buttonId] >= 0) {
+        digitalWrite(ledPinMap[buttonId], isPressed ? HIGH : LOW);
+    }
 }

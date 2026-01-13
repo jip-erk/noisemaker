@@ -8,6 +8,9 @@ AudioResources::AudioResources() {
     // Audio routing: 4 sample players -> 4 envelopes -> mixer4 -> USB output
     int pci = 0;  // Counter for patchcord allocation
 
+    patchCord[pci++] = new AudioConnection(audioInput, queue1);
+    patchCord[pci++] = new AudioConnection(audioInput, peak1);
+
     // Connect sample players to envelopes
     patchCord[pci++] = new AudioConnection(playSdWav, 0, envelope, 0);
     patchCord[pci++] = new AudioConnection(playSdWav1, 0, envelope1, 0);

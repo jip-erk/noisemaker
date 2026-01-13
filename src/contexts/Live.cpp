@@ -1,10 +1,7 @@
 #include "Live.h"
 
-// Default MIDI note mappings (C3=60, C#3=61, D3=62, D#3=63)
-const uint8_t Live::DEFAULT_MIDI_NOTES[NUM_SLOTS] = {60, 61, 62, 63};
-
-// Slot labels for display
-const char* Live::SLOT_LABELS[NUM_SLOTS] = {"kick", "snare", "hat", "perc"};
+// Track labels for display
+const char* Live::TRACK_LABELS[NUM_TRACKS] = {"kick", "snare", "hat", "perc"};
 
 Live::Live(Controls* keyboard, Screen* screen, NavigationCallback navCallback) {
     _keyboard = keyboard;
@@ -13,10 +10,16 @@ Live::Live(Controls* keyboard, Screen* screen, NavigationCallback navCallback) {
     _audioResources = nullptr;
     _liveScreen = LiveScreen(screen);
 
-    // Initialize slots with default MIDI notes
-    for (int i = 0; i < NUM_SLOTS; i++) {
-        _slots[i].midiNote = DEFAULT_MIDI_NOTES[i];
+    // Initialize sequencer grid - all steps off
+    for (int t = 0; t < NUM_TRACKS; t++) {
+        for (int s = 0; s < NUM_STEPS; s++) {
+            _sequencerGrid[t][s] = false;
+        }
     }
+
+    _currentStep = 0;
+    _currentBPM = 120;
+    _isPlaying = false;
 }
 
 Live::~Live() {
@@ -24,97 +27,125 @@ Live::~Live() {
 }
 
 void Live::refresh() {
-    currentState = LIVE_SLOT_VIEW;
-    _selectedSlotIndex = 0;
-    _liveScreen.drawSlotView(_slots, _selectedSlotIndex, NUM_SLOTS,
-                             SLOT_LABELS);
+    currentState = LIVE_TRACK_VIEW;
+    _selectedTrackIndex = 0;
+    _liveScreen.drawTrackView(_tracks, _selectedTrackIndex, NUM_TRACKS,
+                              TRACK_LABELS);
 }
 
 void Live::setAudioResources(AudioResources* audioResources) {
     _audioResources = audioResources;
 }
 
-void Live::handleMidiNote(uint8_t note, uint8_t velocity) {
-    // Only handle note-on events (velocity > 0)
-    if (velocity == 0) return;
-
-    // Find the slot that matches this MIDI note
-    for (int i = 0; i < NUM_SLOTS; i++) {
-        if (_slots[i].midiNote == note && _slots[i].isAssigned) {
-            playSlot(i);
-            break;
-        }
+long Live::receiveTimerTick() {
+    if (_isPlaying && currentState == LIVE_SEQUENCER) {
+        advanceStep();
+        return calculateStepIntervalMicros();
     }
+    return 1000000;  // 1s when not playing sequencer
 }
 
 void Live::handleEvent(Controls::ButtonEvent event) {
-    // Back button (button 1) - depends on state
+    // Back button (button 1)
     if (event.buttonId == 1 && event.state == PRESSED) {
-        if (currentState == LIVE_SLOT_VIEW) {
+        if (currentState == LIVE_TRACK_VIEW) {
             // Return to home
             if (_navCallback) {
                 _navCallback(AppContext::HOME);
                 return;
             }
         } else if (currentState == LIVE_SAMPLE_SELECT) {
-            // Return to slot view
-            currentState = LIVE_SLOT_VIEW;
-            _liveScreen.drawSlotView(_slots, _selectedSlotIndex, NUM_SLOTS,
-                                     SLOT_LABELS);
+            // Return to track view
+            currentState = LIVE_TRACK_VIEW;
+            _liveScreen.drawTrackView(_tracks, _selectedTrackIndex, NUM_TRACKS,
+                                      TRACK_LABELS);
+        } else if (currentState == LIVE_SEQUENCER) {
+            // Return to track view
+            if (_isPlaying) {
+                stopPlayback();
+            }
+            currentState = LIVE_TRACK_VIEW;
+            _liveScreen.drawTrackView(_tracks, _selectedTrackIndex, NUM_TRACKS,
+                                      TRACK_LABELS);
         }
         return;
     }
 
     // Button 2 - Select/Confirm
     if (event.buttonId == 2 && event.state == PRESSED) {
-        if (currentState == LIVE_SLOT_VIEW) {
-            // Enter sample selection for this slot
+        if (currentState == LIVE_TRACK_VIEW) {
+            // Enter sample selection for this track
             loadFileList();
             currentState = LIVE_SAMPLE_SELECT;
             _selectedFileIndex = 0;
             _liveScreen.drawSampleSelect(_fileList, _selectedFileIndex,
                                          _fileCount);
         } else if (currentState == LIVE_SAMPLE_SELECT) {
-            // Assign selected sample to slot
-            assignSampleToSlot();
-            currentState = LIVE_SLOT_VIEW;
-            _liveScreen.drawSlotView(_slots, _selectedSlotIndex, NUM_SLOTS,
-                                     SLOT_LABELS);
+            // Assign selected sample to track
+            assignSampleToTrack();
+            currentState = LIVE_TRACK_VIEW;
+            _liveScreen.drawTrackView(_tracks, _selectedTrackIndex, NUM_TRACKS,
+                                      TRACK_LABELS);
+        } else if (currentState == LIVE_SEQUENCER) {
+            // Toggle step at current playhead position
+            toggleStep(_selectedTrackIndex, _currentStep);
+            _liveScreen.drawSequencer(_sequencerGrid, _selectedTrackIndex,
+                                      _currentStep, _currentBPM, _isPlaying,
+                                      NUM_TRACKS, NUM_STEPS);
         }
         return;
     }
 
-    // Button 3 - Play/Stop slot
+    // Button 3 - Action
     if (event.buttonId == 3 && event.state == PRESSED) {
-        if (currentState == LIVE_SLOT_VIEW) {
-            // Play the selected slot
-            if (_slots[_selectedSlotIndex].isAssigned) {
-                playSlot(_selectedSlotIndex);
-            }
+        if (currentState == LIVE_TRACK_VIEW) {
+            // Enter sequencer view
+            currentState = LIVE_SEQUENCER;
+            _liveScreen.drawSequencer(_sequencerGrid, _selectedTrackIndex,
+                                      _currentStep, _currentBPM, _isPlaying,
+                                      NUM_TRACKS, NUM_STEPS);
         } else if (currentState == LIVE_SAMPLE_SELECT) {
-            // Clear the slot
-            clearSlot(_selectedSlotIndex);
-            currentState = LIVE_SLOT_VIEW;
-            _liveScreen.drawSlotView(_slots, _selectedSlotIndex, NUM_SLOTS,
-                                     SLOT_LABELS);
+            // Clear the track
+            clearTrack(_selectedTrackIndex);
+            currentState = LIVE_TRACK_VIEW;
+            _liveScreen.drawTrackView(_tracks, _selectedTrackIndex, NUM_TRACKS,
+                                      TRACK_LABELS);
+        } else if (currentState == LIVE_SEQUENCER) {
+            // Toggle playback
+            if (_isPlaying) {
+                stopPlayback();
+            } else {
+                startPlayback();
+            }
+            _liveScreen.drawSequencer(_sequencerGrid, _selectedTrackIndex,
+                                      _currentStep, _currentBPM, _isPlaying,
+                                      NUM_TRACKS, NUM_STEPS);
         }
         return;
     }
 
     // Encoder - Navigation
     if (event.buttonId == 0 && event.encoderValue != 0) {
-        if (currentState == LIVE_SLOT_VIEW) {
-            _selectedSlotIndex += event.encoderValue;
-            _selectedSlotIndex =
-                constrain(_selectedSlotIndex, 0, NUM_SLOTS - 1);
-            _liveScreen.drawSlotView(_slots, _selectedSlotIndex, NUM_SLOTS,
-                                     SLOT_LABELS);
+        if (currentState == LIVE_TRACK_VIEW) {
+            // Navigate tracks
+            _selectedTrackIndex += event.encoderValue;
+            _selectedTrackIndex = constrain(_selectedTrackIndex, 0, NUM_TRACKS - 1);
+            _liveScreen.drawTrackView(_tracks, _selectedTrackIndex, NUM_TRACKS,
+                                      TRACK_LABELS);
         } else if (currentState == LIVE_SAMPLE_SELECT) {
+            // Navigate files
             _selectedFileIndex += event.encoderValue;
             _selectedFileIndex =
                 constrain(_selectedFileIndex, 0, max(0, _fileCount - 1));
             _liveScreen.drawSampleSelect(_fileList, _selectedFileIndex,
                                          _fileCount);
+        } else if (currentState == LIVE_SEQUENCER) {
+            // Navigate tracks (row-first)
+            _selectedTrackIndex += event.encoderValue;
+            _selectedTrackIndex = constrain(_selectedTrackIndex, 0, NUM_TRACKS - 1);
+            _liveScreen.drawSequencer(_sequencerGrid, _selectedTrackIndex,
+                                      _currentStep, _currentBPM, _isPlaying,
+                                      NUM_TRACKS, NUM_STEPS);
         }
         return;
     }
@@ -157,37 +188,35 @@ void Live::loadFileList() {
     Serial.println("Loaded " + String(_fileCount) + " samples");
 }
 
-void Live::assignSampleToSlot() {
+void Live::assignSampleToTrack() {
     if (_selectedFileIndex >= _fileCount) return;
 
     String fullFileName = _fileList[_selectedFileIndex];
-    _slots[_selectedSlotIndex].assignSample(
-        fullFileName, DEFAULT_MIDI_NOTES[_selectedSlotIndex]);
+    _tracks[_selectedTrackIndex].assignSample(fullFileName);
 
     Serial.print("Assigned '");
     Serial.print(fullFileName);
-    Serial.print("' to slot ");
-    Serial.println(_selectedSlotIndex);
+    Serial.print("' to track ");
+    Serial.println(_selectedTrackIndex);
 }
 
-void Live::clearSlot(int slotIndex) {
-    if (slotIndex < 0 || slotIndex >= NUM_SLOTS) return;
+void Live::clearTrack(int trackIndex) {
+    if (trackIndex < 0 || trackIndex >= NUM_TRACKS) return;
 
-    stopSlot(slotIndex);
-    _slots[slotIndex].clear();
-    _slots[slotIndex].midiNote = DEFAULT_MIDI_NOTES[slotIndex];
+    stopTrack(trackIndex);
+    _tracks[trackIndex].clear();
 
-    Serial.print("Cleared slot ");
-    Serial.println(slotIndex);
+    Serial.print("Cleared track ");
+    Serial.println(trackIndex);
 }
 
-void Live::playSlot(int slotIndex) {
-    if (!_audioResources || slotIndex < 0 || slotIndex >= NUM_SLOTS) return;
-    if (!_slots[slotIndex].isAssigned) return;
+void Live::playTrack(int trackIndex) {
+    if (!_audioResources || trackIndex < 0 || trackIndex >= NUM_TRACKS) return;
+    if (!_tracks[trackIndex].isAssigned) return;
 
-    // Get the appropriate WAV player for this slot
+    // Get the appropriate WAV player for this track
     AudioPlaySdWav* player = nullptr;
-    switch (slotIndex) {
+    switch (trackIndex) {
         case 0:
             player = &_audioResources->playSdWav;
             break;
@@ -203,9 +232,9 @@ void Live::playSlot(int slotIndex) {
     }
 
     if (player) {
-        String wavPath = _slots[slotIndex].getWavPath();
+        String wavPath = _tracks[trackIndex].getWavPath();
 
-        Serial.print(slotIndex);
+        Serial.print(trackIndex);
         Serial.print(": ");
         Serial.print(wavPath);
 
@@ -213,7 +242,7 @@ void Live::playSlot(int slotIndex) {
 
         player->play(wavPath.c_str());
         // Trigger envelope to allow audio through
-        AudioEffectEnvelope* env = _audioResources->getEnvelope(slotIndex);
+        AudioEffectEnvelope* env = _audioResources->getEnvelope(trackIndex);
         if (env) {
             env->noteOn();
         }
@@ -221,11 +250,11 @@ void Live::playSlot(int slotIndex) {
     }
 }
 
-void Live::stopSlot(int slotIndex) {
-    if (!_audioResources || slotIndex < 0 || slotIndex >= NUM_SLOTS) return;
+void Live::stopTrack(int trackIndex) {
+    if (!_audioResources || trackIndex < 0 || trackIndex >= NUM_TRACKS) return;
 
     AudioPlaySdWav* player = nullptr;
-    switch (slotIndex) {
+    switch (trackIndex) {
         case 0:
             player = &_audioResources->playSdWav;
             break;
@@ -244,17 +273,56 @@ void Live::stopSlot(int slotIndex) {
         player->stop();
 
         // Release envelope gate
-        AudioEffectEnvelope* env = _audioResources->getEnvelope(slotIndex);
+        AudioEffectEnvelope* env = _audioResources->getEnvelope(trackIndex);
         if (env) {
             env->noteOff();
         }
     }
 }
 
-void Live::stopAllSlots() {
-    for (int i = 0; i < NUM_SLOTS; i++) {
-        stopSlot(i);
+void Live::stopAllTracks() {
+    for (int i = 0; i < NUM_TRACKS; i++) {
+        stopTrack(i);
     }
+}
+
+void Live::startPlayback() {
+    _isPlaying = true;
+    _currentStep = -1;  // Will advance to 0 on first tick
+}
+
+void Live::stopPlayback() {
+    _isPlaying = false;
+    stopAllTracks();
+}
+
+void Live::toggleStep(int track, int step) {
+    if (track >= 0 && track < NUM_TRACKS && step >= 0 && step < NUM_STEPS) {
+        _sequencerGrid[track][step] = !_sequencerGrid[track][step];
+    }
+}
+
+void Live::advanceStep() {
+    _currentStep = (_currentStep + 1) % NUM_STEPS;
+
+    // Trigger tracks with enabled steps
+    for (int t = 0; t < NUM_TRACKS; t++) {
+        if (_sequencerGrid[t][_currentStep] && _tracks[t].isAssigned) {
+            playTrack(t);
+        }
+    }
+
+    // Update display
+    if (currentState == LIVE_SEQUENCER) {
+        _liveScreen.drawSequencer(_sequencerGrid, _selectedTrackIndex,
+                                  _currentStep, _currentBPM, _isPlaying,
+                                  NUM_TRACKS, NUM_STEPS);
+    }
+}
+
+int Live::calculateStepIntervalMicros() {
+    // 16th note = (60 / BPM / 4) seconds = (60000000 / BPM / 4) microseconds
+    return (60000000 / _currentBPM / 4);
 }
 
 String Live::getFileNameWithoutExtension(const String& fileName) {

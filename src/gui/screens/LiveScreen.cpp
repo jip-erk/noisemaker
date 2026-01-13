@@ -10,41 +10,41 @@ LiveScreen::~LiveScreen() {
 
 void LiveScreen::refresh() {
     // Called when entering Live context
-    // Will be drawn by drawSlotView with actual slot data from context
+    // Will be drawn by drawTrackView with actual track data from context
 }
 
-void LiveScreen::drawSlotView(const SampleSlot* slots, int selectedSlotIndex,
-                              int numSlots, const char** slotLabels) {
+void LiveScreen::drawTrackView(const Track* tracks, int selectedTrackIndex,
+                               int numTracks, const char** trackLabels) {
     _screen->clear();
     _screen->setHeaderFont();
-    _screen->drawStr(0, 10, "LIVE - Slots");
+    _screen->drawStr(0, 10, "LIVE - Tracks");
     _screen->setNormalFont();
 
-    // Draw slots
+    // Draw tracks
     int yPos = 20;
-    for (int i = 0; i < numSlots; i++) {
-        // Highlight selected slot
-        if (i == selectedSlotIndex) {
+    for (int i = 0; i < numTracks; i++) {
+        // Highlight selected track
+        if (i == selectedTrackIndex) {
             _screen->drawBox(0, yPos - 2, 128, 12);
             _screen->getDisplay()->setDrawColor(0);  // Invert text
         }
 
-        // Slot label and sample name
-        String slotInfo = String(slotLabels[i]) + ":";
-        if (slots[i].isAssigned) {
+        // Track label and sample name
+        String trackInfo = String(trackLabels[i]) + ":";
+        if (tracks[i].isAssigned) {
             // Show sample name
-            String displayName = slots[i].fileName;
+            String displayName = tracks[i].fileName;
             if (displayName.length() > 10) {
                 displayName = displayName.substring(0, 7) + "...";
             }
-            slotInfo += displayName;
+            trackInfo += displayName;
         } else {
-            slotInfo += "<empty>";
+            trackInfo += "<empty>";
         }
 
-        _screen->drawStr(2, yPos + 8, slotInfo.c_str());
+        _screen->drawStr(2, yPos + 8, trackInfo.c_str());
 
-        if (i == selectedSlotIndex) {
+        if (i == selectedTrackIndex) {
             _screen->getDisplay()->setDrawColor(1);  // Reset
         }
 
@@ -105,53 +105,71 @@ void LiveScreen::drawSampleSelect(const String* fileList, int selectedFileIndex,
     _screen->display();
 }
 
-void LiveScreen::drawSequencer(const bool sequencerGrid[8][16], int selectedRow,
-                               int selectedCol) {
+void LiveScreen::drawSequencer(const bool sequencerGrid[][16], int selectedTrack,
+                               int currentStep, int currentBPM, bool isPlaying,
+                               int numTracks, int numSteps) {
     _screen->clear();
     _screen->setHeaderFont();
-    _screen->drawStr(0, 10, "Seq");
+
+    // Header with BPM and play status
+    char header[20];
+    sprintf(header, "SEQ %dBPM %s", currentBPM, isPlaying ? "[>]" : "[ ]");
+    _screen->drawStr(0, 10, header);
     _screen->setNormalFont();
 
-    const int rowLabelWidth = 14;  // Space for "01" label
-    const int cellWidth = 7;       // Width of each grid cell
-    const int cellHeight = 7;      // Height of each grid cell
-    const int gridStartX = rowLabelWidth + 1;
+    const int trackLabelWidth = 16;  // Space for track labels (e.g., "kick")
+    const int cellWidth = 7;         // Width of each cell
+    const int cellHeight = 12;       // Height of each cell (increased for 4 tracks)
+    const int gridStartX = trackLabelWidth + 1;
     const int gridStartY = 14;
 
-    // Draw row labels and cells
-    for (int row = 0; row < 8; row++) {
-        int yPos = gridStartY + (row * cellHeight);
+    // Draw track labels and grid cells
+    for (int track = 0; track < numTracks; track++) {
+        int yPos = gridStartY + (track * cellHeight);
 
-        // Draw row label (01-08)
-        char rowLabel[3];
-        sprintf(rowLabel, "%02d", row + 1);
-        _screen->drawStr(0, yPos + 6, rowLabel);
+        // Draw track label (or placeholder)
+        const char* trackLabels[] = {"kick", "snare", "hat", "perc"};
+        if (track < 4) {
+            _screen->drawStr(0, yPos + 9, trackLabels[track]);
+        }
 
-        // Draw grid cells for this row
-        for (int col = 0; col < 16; col++) {
-            int xPos = gridStartX + (col * cellWidth);
+        // Draw 16 steps for this track
+        for (int step = 0; step < numSteps; step++) {
+            int xPos = gridStartX + (step * cellWidth);
 
-            if (row == selectedRow && col == selectedCol) {
-                // Highlight selected cell with inverted box
+            bool isCurrentStep = (step == currentStep && isPlaying);
+            bool isSelected = (track == selectedTrack && step == currentStep);
+            bool isActive = sequencerGrid[track][step];
+
+            // Draw cell based on state
+            if (isCurrentStep) {
+                // Playhead indicator - thick border
+                _screen->drawBox(xPos - 1, yPos - 1, cellWidth + 2, cellHeight + 2);
+                if (isActive) {
+                    _screen->drawBox(xPos + 1, yPos + 1, cellWidth - 2, cellHeight - 2);
+                }
+            } else if (isSelected) {
+                // Selected cell - inverted
                 _screen->drawBox(xPos, yPos, cellWidth, cellHeight);
                 _screen->getDisplay()->setDrawColor(0);  // Invert
-                if (sequencerGrid[row][col]) {
-                    _screen->drawBox(xPos + 1, yPos + 1, cellWidth - 2,
-                                     cellHeight - 2);
+                if (isActive) {
+                    _screen->drawBox(xPos + 2, yPos + 2, cellWidth - 4, cellHeight - 4);
                 }
                 _screen->getDisplay()->setDrawColor(1);  // Reset
             } else {
-                // Draw normal cell
-                if (sequencerGrid[row][col]) {
-                    _screen->drawBox(xPos + 1, yPos + 1, cellWidth - 2,
-                                     cellHeight - 2);
+                // Normal cell
+                if (isActive) {
+                    _screen->drawBox(xPos + 1, yPos + 1, cellWidth - 2, cellHeight - 2);
                 } else {
-                    // Draw border only
-                    _screen->drawBox(xPos, yPos, cellWidth, cellHeight);
+                    // Draw thin border using U8G2 drawFrame
+                    _screen->getDisplay()->drawFrame(xPos, yPos, cellWidth, cellHeight);
                 }
             }
         }
     }
+
+    // Footer help text
+    _screen->drawStr(0, 63, "Enc:Trk B2:Tog B3:Play");
 
     _screen->display();
 }
