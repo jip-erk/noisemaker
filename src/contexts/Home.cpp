@@ -23,16 +23,24 @@ void Home::drawMenu() {
 }
 
 void Home::handleEvent(Controls::ButtonEvent event) {
-    // Encoder - Navigation
-    if (event.buttonId == 0 && event.encoderValue != 0) {
-        _selectedIndex += event.encoderValue;
+    // Button 5 - Up navigation
+    if (event.buttonId == 5 && event.state == PRESSED) {
+        _selectedIndex--;
         _selectedIndex = constrain(_selectedIndex, 0, NUM_MENU_ITEMS - 1);
         drawMenu();
         return;
     }
 
-    // Button 2 - Select
-    if (event.buttonId == 2 && event.state == PRESSED) {
+    // Button 3 - Down navigation
+    if (event.buttonId == 3 && event.state == PRESSED) {
+        _selectedIndex++;
+        _selectedIndex = constrain(_selectedIndex, 0, NUM_MENU_ITEMS - 1);
+        drawMenu();
+        return;
+    }
+
+    // Button 4 - Select
+    if (event.buttonId == 4 && event.state == PRESSED) {
         if (_navCallback) {
             AppContext targetContext =
                 (_selectedIndex == 0) ? AppContext::RECORDER : AppContext::LIVE;

@@ -15,7 +15,7 @@ class WaveformSelector {
 
     // Sensitivity constants
     static constexpr int BASE_INCREMENT_DIVISOR = 100;
-    static constexpr int MIN_INCREMENT = 1;
+    static constexpr int MIN_INCREMENT = 20;
     static constexpr float ZOOM_IN_FACTOR = 0.9f;
     static constexpr float ZOOM_OUT_FACTOR = 1.11f;
     static constexpr int MIN_VIEW_RANGE = 500;
@@ -113,6 +113,26 @@ class WaveformSelector {
 
     void changeSide() { selectingLeft = !selectingLeft; }
 
+    void pan(int direction) {
+        if (!_waveform || direction == 0) return;
+
+        int totalSamples = getTotalSamples();
+        int viewRange = getViewRange();
+        int panAmount = viewRange / 10;  // Pan 10% of current view
+
+        if (direction > 0) {
+            // Pan right
+            _viewEndSample = std::min(totalSamples, _viewEndSample + panAmount);
+            _viewStartSample = _viewEndSample - viewRange;
+        } else {
+            // Pan left
+            _viewStartSample = std::max(0, _viewStartSample - panAmount);
+            _viewEndSample = _viewStartSample + viewRange;
+        }
+
+        clampViewBounds();
+    }
+
     void draw() {
         if (!_waveform) return;
 
@@ -128,6 +148,7 @@ class WaveformSelector {
     int getSelectEnd() const { return selectEndX; }
     int getViewStart() const { return _viewStartSample; }
     int getViewEnd() const { return _viewEndSample; }
+    bool isSelectingLeft() const { return selectingLeft; }
 
     void resetZoom() {
         if (!_waveform) return;

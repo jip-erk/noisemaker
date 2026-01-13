@@ -18,8 +18,8 @@ class Controls {
     static const byte buttonPin3 = 5;
     static const byte buttonPin4 = 3;
     static const byte buttonPin5 = 7;
-    static const byte encoderPinA = 0;
-    static const byte encoderPinB = 1;
+    static const byte encoderPinA = 1;
+    static const byte encoderPinB = 0;
 
     // LED pins
     static const byte ledPin1 = 2;
@@ -48,8 +48,6 @@ class Controls {
 
     bool isComboPressed(uint8_t button1, uint8_t button2);
     bool isComboPressed(uint8_t button1, uint8_t button2, uint8_t button3);
-
-    uint8_t getButtonMask();
 
     // LED management
     void triggerLedForButton(uint8_t buttonId, bool isPressed);

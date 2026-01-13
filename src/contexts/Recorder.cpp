@@ -24,6 +24,7 @@ Recorder::~Recorder() {
 
 void Recorder::refresh() {
     currentState = RECORDER_HOME;
+    _keyboard->triggerLedForButton(1, false);
     _recorderScreen.refresh();
 }
 
@@ -32,6 +33,15 @@ long Recorder::receiveTimerTick() {
         updateVolumeBar();
         return VOLUME_UPDATE_INTERVAL_US;
     } else if (currentState == RECORDER_RECORDING) {
+        // Update recording time display
+        unsigned long elapsedTime = millis() - _recordingStartTime;
+        _recorderScreen.setRecordingTime(elapsedTime);
+
+        // Blink button 1 LED (500ms on, 500ms off - synchronized with update
+        // interval)
+        bool ledState = (elapsedTime % 1000) < 500;
+        _keyboard->triggerLedForButton(1, ledState);
+
         updateWaveform();
         return WAVEFORM_UPDATE_INTERVAL_US;
     }
@@ -47,11 +57,16 @@ void Recorder::setAudioResources(AudioResources* audioResources) {
 
 void Recorder::handleEvent(Controls::ButtonEvent event) {
     if (event.buttonId == 1 && event.state == PRESSED) {
-        // If in editing mode, save the .bdf file with start/end positions
+        // Stop recording
+        if (currentState == RECORDER_RECORDING) {
+            stopRecording();
+            return;
+        }
+
+        // In editing mode, button 1 is shift modifier only - no solo action
+        // (Button 1 + Button 4 handled in button 4 section)
         if (currentState == RECORDER_EDITING) {
-            uint32_t startPos = _recorderScreen.getSelectStart();
-            uint32_t endPos = _recorderScreen.getSelectEnd();
-            saveBinaryDataFile(_recordedFileName, startPos, endPos);
+            return;
         }
 
         if (_navCallback) {
@@ -62,27 +77,28 @@ void Recorder::handleEvent(Controls::ButtonEvent event) {
 
     if (event.buttonId == 2 && event.state == PRESSED) {
         if (currentState == RECORDER_HOME) {
+            if (_navCallback) {
+                _navCallback(AppContext::HOME);
+                return;
+            }
+        }
+        return;
+    }
+
+    if (event.buttonId == 4 && event.state == PRESSED) {
+        if (currentState == RECORDER_HOME) {
             showRecorderScreen();
         } else if (currentState == RECORDER_RECORDING) {
             stopRecording();
         } else if (currentState == RECORDER_EDITING) {
-            // Button 1 held + Button 2 = Save .bdf file
+            // Button 1 held + Button 4 = Go back to home
             if (event.button1Held) {
-                uint32_t startPos = _recorderScreen.getSelectStart();
-                uint32_t endPos = _recorderScreen.getSelectEnd();
-                saveBinaryDataFile(_recordedFileName, startPos, endPos);
-
-                // Show save confirmation
-                _screen->clear();
-                _screen->drawStr(0, 10, _recordedFileName.c_str());
-                _screen->drawStr(0, 30, "Saved!");
-                _screen->display();
-                delay(500);
-
-                // Redraw edit screen
-                showEditScreen();
+                if (_navCallback) {
+                    _navCallback(AppContext::HOME);
+                    return;
+                }
             } else {
-                // Button 2 alone = Play sample
+                // Button 4 alone = Play sample
                 String path = getFilePath(_recordedFileName);
                 const int WAV_HEADER_SIZE = 44;
                 uint32_t startByte =
@@ -97,25 +113,49 @@ void Recorder::handleEvent(Controls::ButtonEvent event) {
         return;
     }
 
-    if (event.buttonId == 3 && event.state == PRESSED) {
-        if (!event.button1Held && !event.button2Held) {
-            if (currentState == RECORDER_EDITING) {
+    // Button 5 = Change sides or trim with button 1
+    if (event.buttonId == 5 && event.state == PRESSED) {
+        if (currentState == RECORDER_EDITING) {
+            // Button 1 held + Button 5 = Trim audio file to selection
+            if (event.button1Held) {
+                uint32_t startPos = _recorderScreen.getSelectStart();
+                uint32_t endPos = _recorderScreen.getSelectEnd();
+                trimAudioFile(_recordedFileName, startPos, endPos);
+
+                // Show save confirmation
+                _screen->clear();
+                _screen->drawStr(0, 10, _recordedFileName.c_str());
+                _screen->drawStr(0, 30, "Trimmed!");
+                _screen->display();
+                delay(500);
+
+                // Redraw edit screen
+                showEditScreen();
+            } else {
+                // Button 5 alone = Change sides
                 _recorderScreen.changeSide();
             }
         }
+        return;
     }
 
     // Encoder events
     if (event.buttonId == 0 && event.encoderValue != 0) {
-        // Button 3 + Encoder = Zoom
-        if (event.button3Held && !event.button1Held && !event.button2Held) {
-            _recorderScreen.zoom(event.encoderValue);
-            _screen->display();
-        }
-        // Encoder alone = Update selection
-        else if (!event.button1Held && !event.button2Held &&
-                 !event.button3Held) {
-            if (currentState == RECORDER_EDITING) {
+        if (currentState == RECORDER_EDITING) {
+            // Button 3 held + Encoder = Zoom
+            if (event.button3Held && !event.button1Held && !event.button2Held) {
+                _recorderScreen.zoom(event.encoderValue);
+                _screen->display();
+            }
+            // Button 2 held + Encoder = Pan
+            else if (event.button2Held && !event.button1Held &&
+                     !event.button3Held) {
+                _recorderScreen.pan(event.encoderValue);
+                _screen->display();
+            }
+            // Encoder alone = Update selection
+            else if (!event.button1Held && !event.button2Held &&
+                     !event.button3Held) {
                 _recorderScreen.updateSelection(event.encoderValue);
                 _screen->display();
             }
@@ -151,7 +191,11 @@ void Recorder::startRecording() {
         SD.mkdir("/RECORDINGS");
     }
 
-    String name = gen.generateAudioFilename();
+    // Create filename with unique number
+    _recordingNumber++;
+    char nameBuffer[16];
+    snprintf(nameBuffer, sizeof(nameBuffer), "REC_%04u", _recordingNumber);
+    String name = String(nameBuffer);
 
     // Start WAV recording
     String path = getFilePath(name);
@@ -178,8 +222,11 @@ void Recorder::updateWaveform() {
 
         // Draw the updated waveform
         _recorderScreen.drawWaveform();
-        _screen->display();
     }
+
+    // Always redraw header to update timer and button blink
+    _recorderScreen.drawRecordingHeader();
+    _screen->display();
 }
 
 void Recorder::continueRecording() {
@@ -197,6 +244,7 @@ void Recorder::stopRecording() {
     }
 
     _audioResources->muteInput();
+    _keyboard->triggerLedForButton(1, false);
 
     // Close the WAV file
     if (_wavWriter->close()) {
@@ -216,35 +264,93 @@ void Recorder::updateVolumeBar() {
     _screen->display();
 }
 
-void Recorder::saveBinaryDataFile(const String& fileName, uint32_t startPos,
-                                  uint32_t endPos) {
-    // Create .bdf file path (filename.wav.bdf)
-    String bdfPath = getFilePath(fileName) + ".bdf";
+void Recorder::trimAudioFile(const String& fileName, uint32_t startPos,
+                             uint32_t endPos) {
+    String originalPath = getFilePath(fileName);
+    String tempPath = getFilePath(fileName) + ".tmp";
 
-    // Open file for writing
-    File bdfFile = SD.open(bdfPath.c_str(), FILE_WRITE);
-    if (!bdfFile) {
-        Serial.println("Failed to create .bdf file: " + bdfPath);
+    // Clamp positions
+    if (startPos >= endPos) {
+        Serial.println("Invalid trim range");
         return;
     }
 
-    // Write start position (4 bytes, little-endian)
-    bdfFile.write((uint8_t)(startPos & 0xFF));
-    bdfFile.write((uint8_t)((startPos >> 8) & 0xFF));
-    bdfFile.write((uint8_t)((startPos >> 16) & 0xFF));
-    bdfFile.write((uint8_t)((startPos >> 24) & 0xFF));
+    // Open original file
+    File originalFile = SD.open(originalPath.c_str(), FILE_READ);
+    if (!originalFile) {
+        Serial.println("Failed to open original file: " + originalPath);
+        return;
+    }
 
-    // Write end position (4 bytes, little-endian)
-    bdfFile.write((uint8_t)(endPos & 0xFF));
-    bdfFile.write((uint8_t)((endPos >> 8) & 0xFF));
-    bdfFile.write((uint8_t)((endPos >> 16) & 0xFF));
-    bdfFile.write((uint8_t)((endPos >> 24) & 0xFF));
+    // Read WAV header (44 bytes)
+    uint8_t header[44];
+    int bytesRead = originalFile.read(header, 44);
+    if (bytesRead < 44) {
+        Serial.println("Invalid WAV file - header too short");
+        originalFile.close();
+        return;
+    }
 
-    bdfFile.close();
+    // Calculate new audio data size
+    uint32_t numSamples = endPos - startPos;
+    uint32_t numBytes = numSamples * 2;  // 16-bit samples = 2 bytes each
 
-    Serial.println("Saved .bdf file: " + bdfPath);
-    Serial.print("Start: ");
-    Serial.print(startPos);
-    Serial.print(", End: ");
-    Serial.println(endPos);
+    // Update WAV header with new size
+    // File size at bytes 4-7 (total file size - 8)
+    uint32_t newFileSize = 36 + numBytes;
+    header[4] = (newFileSize) & 0xFF;
+    header[5] = (newFileSize >> 8) & 0xFF;
+    header[6] = (newFileSize >> 16) & 0xFF;
+    header[7] = (newFileSize >> 24) & 0xFF;
+
+    // Data subchunk size at bytes 40-43
+    header[40] = (numBytes) & 0xFF;
+    header[41] = (numBytes >> 8) & 0xFF;
+    header[42] = (numBytes >> 16) & 0xFF;
+    header[43] = (numBytes >> 24) & 0xFF;
+
+    // Seek to start of audio data (startPos samples after header)
+    uint32_t startByte = startPos * 2 + 44;
+    originalFile.seek(startByte);
+
+    // Create temporary file
+    File tempFile = SD.open(tempPath.c_str(), FILE_WRITE);
+    if (!tempFile) {
+        Serial.println("Failed to create temp file: " + tempPath);
+        originalFile.close();
+        return;
+    }
+
+    // Write header to temp file
+    tempFile.write(header, 44);
+
+    // Copy audio data in chunks
+    const int CHUNK_SIZE = 512;
+    uint8_t buffer[CHUNK_SIZE];
+    uint32_t bytesRemaining = numBytes;
+
+    while (bytesRemaining > 0) {
+        int toRead =
+            (bytesRemaining < CHUNK_SIZE) ? bytesRemaining : CHUNK_SIZE;
+        int bytesActuallyRead = originalFile.read(buffer, toRead);
+
+        if (bytesActuallyRead <= 0) {
+            Serial.println("Error reading audio data");
+            break;
+        }
+
+        tempFile.write(buffer, bytesActuallyRead);
+        bytesRemaining -= bytesActuallyRead;
+    }
+
+    originalFile.close();
+    tempFile.close();
+
+    // Delete original and rename temp to original
+    SD.remove(originalPath.c_str());
+    SD.rename(tempPath.c_str(), originalPath.c_str());
+
+    Serial.println("Trimmed audio file: " + originalPath);
+    Serial.print("Samples: ");
+    Serial.println((unsigned long)numSamples);
 }

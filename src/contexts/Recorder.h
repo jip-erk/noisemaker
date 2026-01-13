@@ -8,7 +8,6 @@
 #include "../gui/screens/RecorderScreen.h"
 #include "../hardware/Controls.h"
 #include "../helper/AudioResources.h"
-#include "../helper/NameGenerator.hpp"
 #include "../helper/WavFileWriter.hpp"
 #include "../main.h"
 
@@ -49,7 +48,7 @@ class Recorder {
     WavFileWriter* _wavWriter;
     unsigned long _recordingStartTime = 0;
     String _recordedFileName;
-    NameGenerator gen;
+    uint32_t _recordingNumber = 0;
 
     // Private methods - business logic
     void startRecording();
@@ -60,6 +59,8 @@ class Recorder {
     void updateVolumeBar();
     void saveBinaryDataFile(const String& fileName, uint32_t startPos,
                             uint32_t endPos);
+    void trimAudioFile(const String& fileName, uint32_t startPos,
+                       uint32_t endPos);
 };
 
 #endif

@@ -158,16 +158,6 @@ bool Controls::isComboPressed(uint8_t btn1, uint8_t btn2, uint8_t btn3) {
     return isDown(btn1) && isDown(btn2) && isDown(btn3);
 }
 
-uint8_t Controls::getButtonMask() {
-    uint8_t mask = 0;
-    if (button1State) mask |= (1 << 0);  // Bit 0
-    if (button2State) mask |= (1 << 1);  // Bit 1
-    if (button3State) mask |= (1 << 2);  // Bit 2
-    if (button4State) mask |= (1 << 3);  // Bit 3
-    if (button5State) mask |= (1 << 4);  // Bit 4
-    return mask;
-}
-
 void Controls::triggerLedForButton(uint8_t buttonId, bool isPressed) {
     if (buttonId < 7 && ledPinMap[buttonId] >= 0) {
         digitalWrite(ledPinMap[buttonId], isPressed ? HIGH : LOW);
