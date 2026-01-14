@@ -110,69 +110,56 @@ void LiveScreen::drawMainView(const bool sequencerGrid[][16], int selectedTrack,
                               int numTracks, int numSteps, int currentPage,
                               const char** trackLabels) {
     _screen->clear();
-    _screen->setHeaderFont();
 
-    // Header with BPM and play status
-    char header[20];
-    sprintf(header, "SEQ %dBPM %s", currentBPM, isPlaying ? "[>]" : "[ ]");
-    _screen->drawStr(0, 10, header);
+    // ===== Header Layout =====
+    const int headerHeight = 10;
+    const int trackBoxWidth = 14;
+    const int playIconSize = 6;
+    const int playIconX = 0;
+    const int playIconY = 2;
+
+    if (!isPlaying) {
+        // Play icon: triangle pointing right
+        _screen->getDisplay()->drawLine(playIconX, playIconY, playIconX,
+                                        playIconY + playIconSize);
+        _screen->getDisplay()->drawLine(playIconX, playIconY,
+                                        playIconX + playIconSize,
+                                        playIconY + playIconSize / 2);
+        _screen->getDisplay()->drawLine(playIconX, playIconY + playIconSize,
+                                        playIconX + playIconSize,
+                                        playIconY + playIconSize / 2);
+    } else {
+        // Pause icon: two vertical bars
+        _screen->getDisplay()->drawVLine(playIconX + 1, playIconY,
+                                         playIconSize);
+        _screen->getDisplay()->drawVLine(playIconX + 4, playIconY,
+                                         playIconSize);
+    }
+
+    // Track number box after play/pause icon
+    const int trackBoxX = 12;
+    _screen->drawBox(trackBoxX, 0, trackBoxWidth, headerHeight);
+
+    // Draw track number (01, 02, etc.)
+    _screen->setNormalFont();
+    char trackStr[3];
+    sprintf(trackStr, "%02d", selectedTrack + 1);
+    _screen->getDisplay()->setDrawColor(0);  // Invert for white box
+    _screen->drawStr(trackBoxX + 4, 7, trackStr);
+    _screen->getDisplay()->setDrawColor(1);  // Reset
     _screen->setNormalFont();
 
-    const int trackLabelWidth = 16;  // Space for track labels
-    const int cellWidth = 7;         // Width of each cell
-    const int cellHeight = 12;       // Height of each cell
-    const int gridStartX = trackLabelWidth + 1;
-    const int gridStartY = 14;
+    // SEQ label
+    _screen->setHeaderFont();
+    _screen->drawStr(trackBoxX + trackBoxWidth + 4, 10, "SEQ");
+    _screen->setNormalFont();
 
-    // Draw track labels and grid cells
-    for (int track = 0; track < numTracks; track++) {
-        int yPos = gridStartY + (track * cellHeight);
+    // BPM on right side
 
-        // Draw track label from parameters
-        if (trackLabels && track < numTracks) {
-            _screen->drawStr(0, yPos + 9, trackLabels[track]);
-        }
-
-        // Draw 4 steps for this page
-        int pageStartStep = currentPage * 4;
-        for (int step = 0; step < 4; step++) {
-            int absoluteStep = pageStartStep + step;
-            if (absoluteStep >= numSteps) break;
-
-            int xPos = gridStartX + (step * cellWidth);
-
-            bool isCurrentStep = (absoluteStep == currentStep && isPlaying);
-            bool isSelected =
-                (track == selectedTrack && absoluteStep == currentStep);
-            bool isActive = sequencerGrid[track][absoluteStep];
-
-            // Draw cell based on state
-            if (isCurrentStep) {
-                // Playhead indicator - thick border
-                _screen->drawBox(xPos - 1, yPos - 1, cellWidth + 2,
-                                 cellHeight + 2);
-                if (isActive) {
-                    _screen->drawBox(xPos + 1, yPos + 1, cellWidth - 2,
-                                     cellHeight - 2);
-                }
-            } else if (isSelected) {
-                // Selected cell - inverted
-                _screen->drawBox(xPos, yPos, cellWidth, cellHeight);
-                _screen->getDisplay()->setDrawColor(0);  // Invert
-                if (isActive) {
-                    _screen->drawBox(xPos + 2, yPos + 2, cellWidth - 4,
-                                     cellHeight - 4);
-                }
-                _screen->getDisplay()->setDrawColor(1);  // Reset
-            } else {
-                // Normal cell
-                if (isActive) {
-                    _screen->drawBox(xPos + 1, yPos + 1, cellWidth - 2,
-                                     cellHeight - 2);
-                }
-            }
-        }
-    }
+    // Footer with page info
+    char footer[30];
+    sprintf(footer, "Page %d/4", currentPage + 1);
+    _screen->drawStr(0, 63, footer);
 
     _screen->display();
 }
@@ -223,8 +210,7 @@ void LiveScreen::drawSequencer(const bool sequencerGrid[][16],
         // Draw cell based on state
         if (isCurrentStep) {
             // Playhead indicator - thick border
-            _screen->drawBox(xPos - 1, yPos - 1, cellWidth + 2,
-                             cellHeight + 2);
+            _screen->drawBox(xPos - 1, yPos - 1, cellWidth + 2, cellHeight + 2);
             if (isActive) {
                 _screen->drawBox(xPos + 1, yPos + 1, cellWidth - 2,
                                  cellHeight - 2);

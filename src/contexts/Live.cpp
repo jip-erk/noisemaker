@@ -66,14 +66,51 @@ long Live::receiveTimerTick() {
 void Live::handleEvent(Controls::ButtonEvent event) {
     // State: LIVE_MAIN
     if (currentState == LIVE_MAIN) {
-        // Button 5 press/release - control LEDs
+        // Button 5 press/release - control LEDs and detect B1-B4 combos
         if (event.buttonId == 5) {
             if (event.state == PRESSED) {
-                // Turn off all LEDs when button 5 is pressed
+                // Check for B1-B4 held + B5 pressed combo (navigate to page)
+                if (event.button1Held || event.button2Held ||
+                    event.button3Held || event.button4Held) {
+                    int targetPage = -1;
+                    if (event.button1Held)
+                        targetPage = 0;
+                    else if (event.button2Held)
+                        targetPage = 1;
+                    else if (event.button3Held)
+                        targetPage = 2;
+                    else if (event.button4Held)
+                        targetPage = 3;
+
+                    if (targetPage != -1) {
+                        _button5UsedForCombo = true;  // Mark that B5 was used
+
+                        // Clear the "was pressed" flags to prevent step toggle
+                        _button1WasPressed = false;
+                        _button2WasPressed = false;
+                        _button3WasPressed = false;
+                        _button4WasPressed = false;
+
+                        // Only navigate and redraw if page actually changes
+                        if (targetPage != _currentPage) {
+                            _currentPage = targetPage;
+                            _liveScreen.drawMainView(
+                                _sequencerGrid, _selectedTrackIndex, _currentStep,
+                                _currentBPM, _isPlaying, NUM_TRACKS, NUM_STEPS,
+                                _currentPage, TRACK_LABELS);
+                            updateLEDs();
+                        }
+                        return;
+                    }
+                }
+
+                // No combo - turn off all LEDs when button 5 is pressed alone
                 for (int i = 1; i <= 4; i++) {
                     _keyboard->triggerLedForButton(i, false);
                 }
             } else {
+                // Reset combo flag on release
+                _button5UsedForCombo = false;
                 // Restore LED state when button 5 is released
                 updateLEDs();
             }
@@ -139,11 +176,54 @@ void Live::handleEvent(Controls::ButtonEvent event) {
             }
         }
 
-        // Buttons 1-4 (no button 5 held) - toggle steps in current page
+        // Buttons 1-4 PRESS - track that they were pressed (when B5 not already
+        // held)
         if (event.buttonId >= 1 && event.buttonId <= 4 &&
             event.state == PRESSED) {
             if (!event.button5Held) {
-                // Calculate absolute step index from page and button
+                // Track that this button was pressed without B5 held
+                switch (event.buttonId) {
+                    case 1:
+                        _button1WasPressed = true;
+                        break;
+                    case 2:
+                        _button2WasPressed = true;
+                        break;
+                    case 3:
+                        _button3WasPressed = true;
+                        break;
+                    case 4:
+                        _button4WasPressed = true;
+                        break;
+                }
+            }
+            return;
+        }
+
+        // Buttons 1-4 RELEASE - toggle steps (only if B5 wasn't used for combo)
+        if (event.buttonId >= 1 && event.buttonId <= 4 &&
+            event.state == NOT_PRESSED && !event.button5Held) {
+            bool shouldToggle = false;
+            switch (event.buttonId) {
+                case 1:
+                    shouldToggle = _button1WasPressed;
+                    _button1WasPressed = false;
+                    break;
+                case 2:
+                    shouldToggle = _button2WasPressed;
+                    _button2WasPressed = false;
+                    break;
+                case 3:
+                    shouldToggle = _button3WasPressed;
+                    _button3WasPressed = false;
+                    break;
+                case 4:
+                    shouldToggle = _button4WasPressed;
+                    _button4WasPressed = false;
+                    break;
+            }
+
+            if (shouldToggle && !_button5UsedForCombo) {
                 int stepIndex = (_currentPage * 4) + (event.buttonId - 1);
                 toggleStep(_selectedTrackIndex, stepIndex);
                 _liveScreen.drawMainView(_sequencerGrid, _selectedTrackIndex,
@@ -151,8 +231,8 @@ void Live::handleEvent(Controls::ButtonEvent event) {
                                          NUM_TRACKS, NUM_STEPS, _currentPage,
                                          TRACK_LABELS);
                 updateLEDs();
-                return;
             }
+            return;
         }
     }
 

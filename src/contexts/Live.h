@@ -67,6 +67,13 @@ class Live {
     unsigned long _lastMemoryLogTime = 0;
     static const unsigned long MEMORY_LOG_INTERVAL = 5000;  // Log every 5 seconds
 
+    // Button combination tracking for order-dependent behaviors
+    bool _button1WasPressed = false;
+    bool _button2WasPressed = false;
+    bool _button3WasPressed = false;
+    bool _button4WasPressed = false;
+    bool _button5UsedForCombo = false;  // Track if B5 was used in a combo
+
     // Private methods - business logic
     void loadFileList();
     void assignSampleToTrack();
