@@ -26,7 +26,7 @@ void SampleManagerScreen::drawList(const String* fileList, int selectedIndex,
     if (selectedIndex >= visibleItems) {
         startIndex = selectedIndex - (visibleItems - 1);
     }
-    
+
     int endIndex = min(fileCount, startIndex + visibleItems);
     int yPos = 20;
 
@@ -37,7 +37,7 @@ void SampleManagerScreen::drawList(const String* fileList, int selectedIndex,
         }
 
         String displayName = fileList[i];
-        
+
         // Truncate if too long
         if (displayName.length() > 20) {
             displayName = displayName.substring(0, 17) + "...";
@@ -51,7 +51,7 @@ void SampleManagerScreen::drawList(const String* fileList, int selectedIndex,
 
         yPos += 12;
     }
-    
+
     // Commands footer
     _screen->drawStr(0, 60, "B2: Back  B4: Del");
 

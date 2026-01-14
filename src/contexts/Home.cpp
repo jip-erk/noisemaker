@@ -1,7 +1,8 @@
 #include "Home.h"
 
 // Menu items for the home screen
-const char *Home::MENU_ITEMS[NUM_MENU_ITEMS + 1] = {"Recorder", "Live", "Files", nullptr};
+const char* Home::MENU_ITEMS[NUM_MENU_ITEMS + 1] = {"Recorder", "Live", "Files",
+                                                    nullptr};
 
 Home::Home(Controls* keyboard, Screen* screen, NavigationCallback navCallback) {
     _keyboard = keyboard;
@@ -49,7 +50,7 @@ void Home::handleEvent(Controls::ButtonEvent event) {
                 targetContext = AppContext::LIVE;
             else
                 targetContext = AppContext::SAMPLE_MANAGER;
-            
+
             _navCallback(targetContext);
             return;
         }

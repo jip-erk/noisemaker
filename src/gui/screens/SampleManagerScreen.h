@@ -2,6 +2,7 @@
 #define SampleManagerScreen_h
 
 #include <Arduino.h>
+
 #include "../Screen.h"
 
 class SampleManagerScreen {
