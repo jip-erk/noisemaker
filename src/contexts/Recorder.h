@@ -61,6 +61,7 @@ class Recorder {
                             uint32_t endPos);
     void trimAudioFile(const String& fileName, uint32_t startPos,
                        uint32_t endPos);
+    void findHighestRecordingNumber();
 };
 
 #endif

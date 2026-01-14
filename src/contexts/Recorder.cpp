@@ -25,6 +25,7 @@ Recorder::~Recorder() {
 void Recorder::refresh() {
     currentState = RECORDER_HOME;
     _keyboard->triggerLedForButton(1, false);
+    findHighestRecordingNumber();
     _recorderScreen.refresh();
 }
 
@@ -353,4 +354,42 @@ void Recorder::trimAudioFile(const String& fileName, uint32_t startPos,
     Serial.println("Trimmed audio file: " + originalPath);
     Serial.print("Samples: ");
     Serial.println((unsigned long)numSamples);
+}
+
+void Recorder::findHighestRecordingNumber() {
+    _recordingNumber = 0;
+
+    if (!SD.exists("/RECORDINGS")) {
+        Serial.println("RECORDINGS directory does not exist");
+        return;
+    }
+
+    File recordingsDir = SD.open("/RECORDINGS");
+    if (!recordingsDir || !recordingsDir.isDirectory()) {
+        Serial.println("Failed to open RECORDINGS directory");
+        if (recordingsDir) recordingsDir.close();
+        return;
+    }
+
+    while (true) {
+        File entry = recordingsDir.openNextFile();
+        if (!entry) break;
+
+        String filename = entry.name();
+        if (!entry.isDirectory() && (filename.endsWith(".wav") || filename.endsWith(".WAV"))) {
+            // Parse filename: REC_XXXX.wav
+            if (filename.startsWith("REC_")) {
+                String numberStr = filename.substring(4, 8);  // Extract "XXXX" from "REC_XXXX"
+                uint32_t fileNumber = numberStr.toInt();
+                if (fileNumber > _recordingNumber) {
+                    _recordingNumber = fileNumber;
+                }
+            }
+        }
+        entry.close();
+    }
+
+    recordingsDir.close();
+    Serial.print("Found highest recording number: ");
+    Serial.println(_recordingNumber);
 }

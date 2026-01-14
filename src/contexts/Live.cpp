@@ -31,9 +31,13 @@ void Live::refresh() {
     _selectedTrackIndex = 0;
     _currentPage = 0;
     _displayNeedsUpdate = false;
+
+    // Load all SD files into memory when entering Live mode
+    loadFileList();
+
     _liveScreen.drawMainView(_sequencerGrid, _selectedTrackIndex, _currentStep,
                              _currentBPM, _isPlaying, NUM_TRACKS, NUM_STEPS,
-                             _currentPage, TRACK_LABELS);
+                             _currentPage, TRACK_LABELS, _tracks);
 
     // Cache all assigned samples when entering Live mode
     cacheSamples();
@@ -44,7 +48,7 @@ void Live::updateDisplay() {
         _displayNeedsUpdate = false;
         _liveScreen.drawMainView(
             _sequencerGrid, _selectedTrackIndex, _currentStep, _currentBPM,
-            _isPlaying, NUM_TRACKS, NUM_STEPS, _currentPage, TRACK_LABELS);
+            _isPlaying, NUM_TRACKS, NUM_STEPS, _currentPage, TRACK_LABELS, _tracks);
         updateLEDs();
     }
 }
@@ -97,7 +101,7 @@ void Live::handleEvent(Controls::ButtonEvent event) {
                             _liveScreen.drawMainView(
                                 _sequencerGrid, _selectedTrackIndex, _currentStep,
                                 _currentBPM, _isPlaying, NUM_TRACKS, NUM_STEPS,
-                                _currentPage, TRACK_LABELS);
+                                _currentPage, TRACK_LABELS, _tracks);
                             updateLEDs();
                         }
                         return;
@@ -126,7 +130,7 @@ void Live::handleEvent(Controls::ButtonEvent event) {
             _currentPage = 0;  // Reset page when changing track
             _liveScreen.drawMainView(
                 _sequencerGrid, _selectedTrackIndex, _currentStep, _currentBPM,
-                _isPlaying, NUM_TRACKS, NUM_STEPS, _currentPage, TRACK_LABELS);
+                _isPlaying, NUM_TRACKS, NUM_STEPS, _currentPage, TRACK_LABELS, _tracks);
             updateLEDs();
             return;
         }
@@ -140,14 +144,13 @@ void Live::handleEvent(Controls::ButtonEvent event) {
                 _liveScreen.drawMainView(_sequencerGrid, _selectedTrackIndex,
                                          _currentStep, _currentBPM, _isPlaying,
                                          NUM_TRACKS, NUM_STEPS, _currentPage,
-                                         TRACK_LABELS);
+                                         TRACK_LABELS, _tracks);
                 updateLEDs();
                 return;
             }
 
             // Button 5 + Button 1 - show file selector
             if (event.buttonId == 1 && event.state == PRESSED) {
-                loadFileList();
                 currentState = LIVE_SAMPLE_SELECT;
                 _selectedFileIndex = 0;
                 _liveScreen.drawSampleSelect(_fileList, _selectedFileIndex,
@@ -171,7 +174,7 @@ void Live::handleEvent(Controls::ButtonEvent event) {
                 _liveScreen.drawMainView(_sequencerGrid, _selectedTrackIndex,
                                          _currentStep, _currentBPM, _isPlaying,
                                          NUM_TRACKS, NUM_STEPS, _currentPage,
-                                         TRACK_LABELS);
+                                         TRACK_LABELS, _tracks);
                 return;
             }
         }
@@ -229,7 +232,7 @@ void Live::handleEvent(Controls::ButtonEvent event) {
                 _liveScreen.drawMainView(_sequencerGrid, _selectedTrackIndex,
                                          _currentStep, _currentBPM, _isPlaying,
                                          NUM_TRACKS, NUM_STEPS, _currentPage,
-                                         TRACK_LABELS);
+                                         TRACK_LABELS, _tracks);
                 updateLEDs();
             }
             return;
@@ -240,7 +243,7 @@ void Live::handleEvent(Controls::ButtonEvent event) {
     else if (currentState == LIVE_SAMPLE_SELECT) {
         // Encoder rotation - navigate files
         if (event.buttonId == 0 && event.encoderValue != 0) {
-            _selectedFileIndex += event.encoderValue;
+            _selectedFileIndex -= event.encoderValue;
             _selectedFileIndex =
                 constrain(_selectedFileIndex, 0, max(0, _fileCount - 1));
             _liveScreen.drawSampleSelect(_fileList, _selectedFileIndex,
@@ -253,7 +256,7 @@ void Live::handleEvent(Controls::ButtonEvent event) {
             currentState = LIVE_MAIN;
             _liveScreen.drawMainView(
                 _sequencerGrid, _selectedTrackIndex, _currentStep, _currentBPM,
-                _isPlaying, NUM_TRACKS, NUM_STEPS, _currentPage, TRACK_LABELS);
+                _isPlaying, NUM_TRACKS, NUM_STEPS, _currentPage, TRACK_LABELS, _tracks);
             updateLEDs();
             return;
         }
@@ -264,7 +267,7 @@ void Live::handleEvent(Controls::ButtonEvent event) {
             currentState = LIVE_MAIN;
             _liveScreen.drawMainView(
                 _sequencerGrid, _selectedTrackIndex, _currentStep, _currentBPM,
-                _isPlaying, NUM_TRACKS, NUM_STEPS, _currentPage, TRACK_LABELS);
+                _isPlaying, NUM_TRACKS, NUM_STEPS, _currentPage, TRACK_LABELS, _tracks);
             updateLEDs();
             return;
         }
@@ -275,7 +278,7 @@ void Live::handleEvent(Controls::ButtonEvent event) {
             currentState = LIVE_MAIN;
             _liveScreen.drawMainView(
                 _sequencerGrid, _selectedTrackIndex, _currentStep, _currentBPM,
-                _isPlaying, NUM_TRACKS, NUM_STEPS, _currentPage, TRACK_LABELS);
+                _isPlaying, NUM_TRACKS, NUM_STEPS, _currentPage, TRACK_LABELS, _tracks);
             updateLEDs();
             return;
         }

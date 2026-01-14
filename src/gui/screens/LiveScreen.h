@@ -17,14 +17,11 @@ class LiveScreen {
     void drawMainView(const bool sequencerGrid[][16], int selectedTrack,
                       int currentStep, int currentBPM, bool isPlaying,
                       int numTracks, int numSteps, int currentPage,
-                      const char** trackLabels);
+                      const char** trackLabels, const Track* tracks);
     void drawTrackView(const Track* tracks, int selectedTrackIndex,
                        int numTracks, const char** trackLabels);
     void drawSampleSelect(const String* fileList, int selectedFileIndex,
                           int fileCount);
-    void drawSequencer(const bool sequencerGrid[][16], int selectedTrack,
-                       int currentStep, int currentBPM, bool isPlaying,
-                       int numTracks, int numSteps);
 
    private:
     Screen* _screen;

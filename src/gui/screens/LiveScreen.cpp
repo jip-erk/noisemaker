@@ -108,7 +108,7 @@ void LiveScreen::drawSampleSelect(const String* fileList, int selectedFileIndex,
 void LiveScreen::drawMainView(const bool sequencerGrid[][16], int selectedTrack,
                               int currentStep, int currentBPM, bool isPlaying,
                               int numTracks, int numSteps, int currentPage,
-                              const char** trackLabels) {
+                              const char** trackLabels, const Track* tracks) {
     _screen->clear();
 
     // ===== Header Layout =====
@@ -154,79 +154,20 @@ void LiveScreen::drawMainView(const bool sequencerGrid[][16], int selectedTrack,
     _screen->drawStr(trackBoxX + trackBoxWidth + 4, 10, "SEQ");
     _screen->setNormalFont();
 
-    // BPM on right side
-
-    // Footer with page info
-    char footer[30];
-    sprintf(footer, "Page %d/4", currentPage + 1);
-    _screen->drawStr(0, 63, footer);
-
-    _screen->display();
-}
-
-void LiveScreen::drawSequencer(const bool sequencerGrid[][16],
-                               int selectedTrack, int currentStep,
-                               int currentBPM, bool isPlaying, int numTracks,
-                               int numSteps) {
-    _screen->clear();
-    _screen->setHeaderFont();
-
-    // Header with track info, BPM and play status
-    char header[30];
-    const char* trackLabels[] = {"A", "B", "C", "D"};
-    const char* trackLabel =
-        (selectedTrack < numTracks) ? trackLabels[selectedTrack] : "?";
-    sprintf(header, "Trk %s %dBPM %s", trackLabel, currentBPM,
-            isPlaying ? "[>]" : "[ ]");
-    _screen->drawStr(0, 10, header);
-    _screen->setNormalFont();
-
-    const int trackLabelWidth = 16;  // Space for track labels
-    const int cellWidth = 7;         // Width of each cell
-    const int cellHeight = 12;       // Height of each cell
-    const int gridStartX = trackLabelWidth + 1;
-    const int gridStartY = 14;
-
-    // Draw only selected track with 4 steps at a time (page 0-3)
-    int currentPage = currentStep / 4;
-    int pageStartStep = currentPage * 4;
-    int yPos = gridStartY;
-
-    // Draw track header
-    if (selectedTrack < numTracks) {
-        _screen->drawStr(0, yPos + 9, trackLabel);
-    }
-
-    // Draw 4 steps for the current page
-    for (int step = 0; step < 4; step++) {
-        int absoluteStep = pageStartStep + step;
-        if (absoluteStep >= numSteps) break;
-
-        int xPos = gridStartX + (step * cellWidth);
-
-        bool isCurrentStep = (absoluteStep == currentStep && isPlaying);
-        bool isActive = sequencerGrid[selectedTrack][absoluteStep];
-
-        // Draw cell based on state
-        if (isCurrentStep) {
-            // Playhead indicator - thick border
-            _screen->drawBox(xPos - 1, yPos - 1, cellWidth + 2, cellHeight + 2);
-            if (isActive) {
-                _screen->drawBox(xPos + 1, yPos + 1, cellWidth - 2,
-                                 cellHeight - 2);
-            }
-        } else {
-            // Normal cell
-            if (isActive) {
-                _screen->drawBox(xPos + 1, yPos + 1, cellWidth - 2,
-                                 cellHeight - 2);
-            } else {
-                // Draw thin border
-                _screen->getDisplay()->drawFrame(xPos, yPos, cellWidth,
-                                                 cellHeight);
+    // Sample name under header
+    String sampleName = "<empty>";
+    if (selectedTrack >= 0 && selectedTrack < numTracks && tracks) {
+        if (tracks[selectedTrack].isAssigned) {
+            sampleName = tracks[selectedTrack].fileName;
+            // Truncate if too long for display
+            if (sampleName.length() > 18) {
+                sampleName = sampleName.substring(0, 15) + "...";
             }
         }
     }
+    _screen->drawStr(0, 20, sampleName.c_str());
+
+    // BPM on right side
 
     // Footer with page info
     char footer[30];

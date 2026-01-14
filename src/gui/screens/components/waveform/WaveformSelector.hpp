@@ -14,8 +14,8 @@ class WaveformSelector {
     int _viewEndSample = 0;
 
     // Sensitivity constants
-    static constexpr int BASE_INCREMENT_DIVISOR = 100;
-    static constexpr int MIN_INCREMENT = 20;
+    static constexpr int BASE_INCREMENT_DIVISOR = 25;
+    static constexpr int MIN_INCREMENT = 80;
     static constexpr float ZOOM_IN_FACTOR = 0.9f;
     static constexpr float ZOOM_OUT_FACTOR = 1.11f;
     static constexpr int MIN_VIEW_RANGE = 500;
