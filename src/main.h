@@ -5,6 +5,7 @@ enum AppContext {
     HOME = 0,
     RECORDER = 1,
     LIVE = 2,
+    SAMPLE_MANAGER = 3
 };
 
 #endif

@@ -14,6 +14,7 @@
 #include "contexts/Home.h"
 #include "contexts/Live.h"
 #include "contexts/Recorder.h"
+#include "contexts/SampleManager.h"
 #include "gui/Screen.h"
 #include "hardware/Controls.h"
 #include "helper/AudioResources.h"
@@ -54,6 +55,7 @@ void changeContext(AppContext newContext);
 Home homeContext(&controls, &screen, changeContext);
 Recorder recorderContext(&controls, &screen, changeContext);
 Live liveContext(&controls, &screen, changeContext, resetGlobalTimer);
+SampleManager sampleManagerContext(&controls, &screen, changeContext);
 AudioResources audioResources;
 
 void changeContext(AppContext newContext) {
@@ -73,6 +75,10 @@ void changeContext(AppContext newContext) {
             audioResources.disableLivePassthrough();
             liveContext.refresh();
             break;
+        case AppContext::SAMPLE_MANAGER:
+            audioResources.disableLivePassthrough();
+            sampleManagerContext.refresh();
+            break;
         default:
             break;
     }
@@ -88,6 +94,9 @@ void sendEventToActiveContext(Controls::ButtonEvent event) {
             break;
         case AppContext::LIVE:
             liveContext.handleEvent(event);
+            break;
+        case AppContext::SAMPLE_MANAGER:
+            sampleManagerContext.handleEvent(event);
             break;
         default:
             break;

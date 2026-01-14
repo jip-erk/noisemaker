@@ -181,29 +181,17 @@ void LiveScreen::drawMainView(const bool sequencerGrid[][16], int selectedTrack,
     // Center leftish
     _screen->getDisplay()->drawCircle(volX, knobY, knobRadius);
 
-    // Vol Value: 0.0 to 1.0
-    // Draw 0.5 exactly at center (top/12 o'clock)
+    // Vol Value: 0.0 to 4.0
+    // Draw 1.0 exactly at center (top/12 o'clock)
     float volNorm;
-    float vVal = constrain(currentVolume, 0.0f, 1.0f);
+    float vVal = constrain(currentVolume, 0.0f, 4.0f);
 
-    if (vVal <= 0.5f) {
-        // Map 0.0..0.5 -> 0.0..0.5
-        volNorm = vVal;
-        // This is actually linear already since 0-0.5 is half the range 0-1.
-        // But explicit logic keeps it consistent if ranges change.
+    if (vVal <= 1.0f) {
+        // Map 0.0..1.0 -> 0.0..0.5
+        volNorm = (vVal / 1.0f) * 0.5f;
     } else {
-        // Map 0.5..1.0 -> 0.5..1.0
-        volNorm = 0.5f + (vVal - 0.5f);
-        // Also linear.
-    }
-
-    volNorm = constrain(currentVolume, 0.0f, 1.0f);
-    // Explicit split logic for symmetry with pitch code, just in case user
-    // changes ranges later (e.g. max vol > 1.0)
-    if (vVal <= 0.5f) {
-        volNorm = (vVal / 0.5f) * 0.5f;
-    } else {
-        volNorm = 0.5f + ((vVal - 0.5f) / 0.5f) * 0.5f;
+        // Map 1.0..4.0 -> 0.5..1.0
+        volNorm = 0.5f + ((vVal - 1.0f) / 3.0f) * 0.5f;
     }
 
     float startAngle = 135.0f * (PI / 180.0f);

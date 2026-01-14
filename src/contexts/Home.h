@@ -32,7 +32,7 @@ class Home {
 
     // Menu state
     int _selectedIndex = 0;
-    static const int NUM_MENU_ITEMS = 2;
+    static const int NUM_MENU_ITEMS = 3;
     static const char*
         MENU_ITEMS[NUM_MENU_ITEMS + 1];  // +1 for null terminator
 

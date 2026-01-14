@@ -1,7 +1,7 @@
 #include "Home.h"
 
 // Menu items for the home screen
-const char *Home::MENU_ITEMS[NUM_MENU_ITEMS + 1] = {"Recorder", "Live", nullptr};
+const char *Home::MENU_ITEMS[NUM_MENU_ITEMS + 1] = {"Recorder", "Live", "Files", nullptr};
 
 Home::Home(Controls* keyboard, Screen* screen, NavigationCallback navCallback) {
     _keyboard = keyboard;
@@ -42,8 +42,14 @@ void Home::handleEvent(Controls::ButtonEvent event) {
     // Button 4 - Select
     if (event.buttonId == 4 && event.state == PRESSED) {
         if (_navCallback) {
-            AppContext targetContext =
-                (_selectedIndex == 0) ? AppContext::RECORDER : AppContext::LIVE;
+            AppContext targetContext;
+            if (_selectedIndex == 0)
+                targetContext = AppContext::RECORDER;
+            else if (_selectedIndex == 1)
+                targetContext = AppContext::LIVE;
+            else
+                targetContext = AppContext::SAMPLE_MANAGER;
+            
             _navCallback(targetContext);
             return;
         }

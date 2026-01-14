@@ -414,7 +414,7 @@ void Live::loadFileList() {
     }
 
     // Read all .WAV files
-    while (true && _fileCount < 20) {
+    while (true && _fileCount < MAX_FILES) {
         File entry = recordingsDir.openNextFile();
         if (!entry) break;
 
@@ -644,7 +644,29 @@ float Live::getTrackVolume(int trackIndex) const {
 void Live::setTrackPitch(int trackIndex, float pitch) {
     if (trackIndex < 0 || trackIndex >= NUM_TRACKS) return;
     _trackPitch[trackIndex] = constrain(pitch, PITCH_MIN, PITCH_MAX);
-    // Pitch will be applied on next playTrack call
+
+    // // Apply immediate pitch change if audio resources are available
+    // if (_audioResources) {
+    //     AudioPlaySdResmp* player = nullptr;
+    //     switch (trackIndex) {
+    //         case 0:
+    //             player = &_audioResources->playSdWav;
+    //             break;
+    //         case 1:
+    //             player = &_audioResources->playSdWav1;
+    //             break;
+    //         case 2:
+    //             player = &_audioResources->playSdWav2;
+    //             break;
+    //         case 3:
+    //             player = &_audioResources->playSdWav3;
+    //             break;
+    //     }
+
+    //     if (player) {
+    //         player->setPlaybackRate(_trackPitch[trackIndex]);
+    //     }
+    // }
 }
 
 float Live::getTrackPitch(int trackIndex) const {

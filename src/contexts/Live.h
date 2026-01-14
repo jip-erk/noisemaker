@@ -59,7 +59,7 @@ class Live {
     // Volume control constants
     static constexpr float VOLUME_STEP = 0.05f;  // 5% per encoder tick
     static constexpr float VOLUME_MIN = 0.0f;
-    static constexpr float VOLUME_MAX = 1.0f;
+    static constexpr float VOLUME_MAX = 4.0f;
 
     // Pitch control constants
     static constexpr float PITCH_STEP = 0.05f;
@@ -73,7 +73,8 @@ class Live {
     // File list for sample selection
     int _selectedFileIndex = 0;
     int _fileCount = 0;
-    String _fileList[20];  // Max 20 files
+    static const int MAX_FILES = 50;
+    String _fileList[MAX_FILES];  // Max files
 
     // Display update flag (decoupled from audio timing)
     bool _displayNeedsUpdate = false;
