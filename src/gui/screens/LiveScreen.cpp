@@ -109,7 +109,7 @@ void LiveScreen::drawMainView(const bool sequencerGrid[][16], int selectedTrack,
                               int currentStep, int currentBPM, bool isPlaying,
                               int numTracks, int numSteps, int currentPage,
                               const char** trackLabels, const Track* tracks,
-                              int activeVolumeTrack, float activeVolume) {
+                              float currentVolume, float currentPitch) {
     _screen->clear();
 
     // ===== Header Layout =====
@@ -143,7 +143,7 @@ void LiveScreen::drawMainView(const bool sequencerGrid[][16], int selectedTrack,
 
     // Draw track number (01, 02, etc.)
     _screen->setNormalFont();
-    char trackStr[3];
+    char trackStr[12];
     sprintf(trackStr, "%02d", selectedTrack + 1);
     _screen->getDisplay()->setDrawColor(0);  // Invert for white box
     _screen->drawStr(trackBoxX + 4, 7, trackStr);
@@ -168,16 +168,91 @@ void LiveScreen::drawMainView(const bool sequencerGrid[][16], int selectedTrack,
     }
     _screen->drawStr(0, 20, sampleName.c_str());
 
-    // BPM on right side
+    // ===== Visualizers (Volume & Pitch) =====
+    // Positioned side-by-side below the sample name
+    // Center Y for knobs = 42
 
-    // Footer with page info or volume display
-    char footer[30];
-    if (activeVolumeTrack >= 0 && activeVolumeTrack < 4) {
-        int volumePercent = (int)(activeVolume * 100);
-        sprintf(footer, "T%d Vol:%d%%", activeVolumeTrack + 1, volumePercent);
+    int knobY = 35;
+    int knobRadius = 8;  // Small radius
+    int textYOffset = knobRadius + 10;
+
+    // --- Volume Knob (Left) ---
+    int volX = 11;
+    // Center leftish
+    _screen->getDisplay()->drawCircle(volX, knobY, knobRadius);
+
+    // Vol Value: 0.0 to 1.0
+    // Draw 0.5 exactly at center (top/12 o'clock)
+    float volNorm;
+    float vVal = constrain(currentVolume, 0.0f, 1.0f);
+
+    if (vVal <= 0.5f) {
+        // Map 0.0..0.5 -> 0.0..0.5
+        volNorm = vVal;
+        // This is actually linear already since 0-0.5 is half the range 0-1.
+        // But explicit logic keeps it consistent if ranges change.
     } else {
-        sprintf(footer, "Page %d/4", currentPage + 1);
+        // Map 0.5..1.0 -> 0.5..1.0
+        volNorm = 0.5f + (vVal - 0.5f);
+        // Also linear.
     }
+
+    volNorm = constrain(currentVolume, 0.0f, 1.0f);
+    // Explicit split logic for symmetry with pitch code, just in case user
+    // changes ranges later (e.g. max vol > 1.0)
+    if (vVal <= 0.5f) {
+        volNorm = (vVal / 0.5f) * 0.5f;
+    } else {
+        volNorm = 0.5f + ((vVal - 0.5f) / 0.5f) * 0.5f;
+    }
+
+    float startAngle = 135.0f * (PI / 180.0f);
+    float endAngle = 405.0f * (PI / 180.0f);
+    float volAngle = startAngle + (volNorm * (endAngle - startAngle));
+
+    int lineLen = knobRadius - 2;
+    _screen->getDisplay()->drawLine(volX, knobY, volX + cos(volAngle) * lineLen,
+                                    knobY + sin(volAngle) * lineLen);
+
+    // Label "Vol"
+    _screen->setNormalFont();
+    char volStr[10];
+    sprintf(volStr, "V:%d%%", (int)(currentVolume * 100));
+    int vW = _screen->getDisplay()->getStrWidth(volStr);
+    _screen->drawStr(volX - (vW / 2), knobY + textYOffset, volStr);
+
+    // --- Pitch Knob (Right) ---
+    int pitchX = 37;  // Center rightish
+    _screen->getDisplay()->drawCircle(pitchX, knobY, knobRadius);
+
+    // Pitch Value: 0.1 to 2.0
+    // Draw 1.0 exactly at center (top/12 o'clock)
+    float pitchNorm;
+    float pVal = constrain(currentPitch, 0.1f, 2.0f);
+
+    if (pVal <= 1.0f) {
+        // Map 0.1..1.0 -> 0.0..0.5
+        pitchNorm = ((pVal - 0.1f) / 0.9f) * 0.5f;
+    } else {
+        // Map 1.0..2.0 -> 0.5..1.0
+        pitchNorm = 0.5f + ((pVal - 1.0f) / 1.0f) * 0.5f;
+    }
+
+    float pitchAngle = startAngle + (pitchNorm * (endAngle - startAngle));
+    _screen->getDisplay()->drawLine(pitchX, knobY,
+                                    pitchX + cos(pitchAngle) * lineLen,
+                                    knobY + sin(pitchAngle) * lineLen);
+
+    char pitchStr[10];
+    int pInt = (int)currentPitch;
+    int pFrac = (int)((currentPitch - pInt) * 100);
+    sprintf(pitchStr, "P:%d.%02d", pInt, pFrac);
+    int pW = _screen->getDisplay()->getStrWidth(pitchStr);
+    _screen->drawStr(pitchX - (pW / 2), knobY + textYOffset, pitchStr);
+
+    // Standard footer
+    char footer[30];
+    sprintf(footer, "Pg %d/4", currentPage + 1);
     _screen->drawStr(0, 63, footer);
 
     _screen->display();

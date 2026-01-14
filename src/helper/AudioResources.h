@@ -3,6 +3,7 @@
 
 #include <Arduino.h>
 #include <Audio.h>
+#include <TeensyVariablePlayback.h>
 
 #include "SD.h"
 #include "audio-extensions/play_sd_wav_extended.h"
@@ -22,10 +23,10 @@ class AudioResources {
     AudioControlSGTL5000 audioShield;
     AudioAnalyzePeak peak1;
 
-    AudioPlaySdWav playSdWav;
-    AudioPlaySdWav playSdWav1;
-    AudioPlaySdWav playSdWav2;
-    AudioPlaySdWav playSdWav3;
+    AudioPlaySdResmp playSdWav;
+    AudioPlaySdResmp playSdWav1;
+    AudioPlaySdResmp playSdWav2;
+    AudioPlaySdResmp playSdWav3;
     AudioEffectEnvelope envelope;
     AudioEffectEnvelope envelope1;
     AudioEffectEnvelope envelope2;

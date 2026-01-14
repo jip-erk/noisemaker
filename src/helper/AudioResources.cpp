@@ -40,6 +40,12 @@ AudioResources::AudioResources() {
     mixer4.gain(1, .5);
     mixer4.gain(2, .5);
     mixer4.gain(3, .5);
+
+    // Initialize variable playback interpolation
+    playSdWav.enableInterpolation(true);
+    playSdWav1.enableInterpolation(true);
+    playSdWav2.enableInterpolation(true);
+    playSdWav3.enableInterpolation(true);
 }
 
 AudioResources::~AudioResources() {

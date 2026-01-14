@@ -18,7 +18,7 @@ class LiveScreen {
                       int currentStep, int currentBPM, bool isPlaying,
                       int numTracks, int numSteps, int currentPage,
                       const char** trackLabels, const Track* tracks,
-                      int activeVolumeTrack = -1, float activeVolume = 0.5f);
+                      float currentVolume, float currentPitch);
     void drawTrackView(const Track* tracks, int selectedTrackIndex,
                        int numTracks, const char** trackLabels);
     void drawSampleSelect(const String* fileList, int selectedFileIndex,
