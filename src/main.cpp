@@ -34,6 +34,15 @@ long globalTickInterval = 1000000;  // intervall in microseconds -> starts at 1s
 long globalTickIntervalNew = 1000000;
 void globalTick();
 
+void resetGlobalTimer(long interval) {
+    if (interval > 0) {
+        noInterrupts();
+        globalTickInterval = interval;
+        globalTickTimer.begin(globalTick, globalTickInterval);
+        interrupts();
+    }
+}
+
 AppContext currentAppContext;
 AppContext lastAppContext;
 
@@ -44,7 +53,7 @@ void changeContext(AppContext newContext);
 
 Home homeContext(&controls, &screen, changeContext);
 Recorder recorderContext(&controls, &screen, changeContext);
-Live liveContext(&controls, &screen, changeContext);
+Live liveContext(&controls, &screen, changeContext, resetGlobalTimer);
 AudioResources audioResources;
 
 void changeContext(AppContext newContext) {

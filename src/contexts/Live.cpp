@@ -3,23 +3,16 @@
 // Track labels for display
 const char* Live::TRACK_LABELS[NUM_TRACKS] = {"A", "B", "C", "D"};
 
-Live::Live(Controls* keyboard, Screen* screen, NavigationCallback navCallback) {
+Live::Live(Controls* keyboard, Screen* screen, NavigationCallback navCallback,
+           TimerResetCallback timerCallback) {
     _keyboard = keyboard;
     _screen = screen;
     _navCallback = navCallback;
+    _timerCallback = timerCallback;
     _audioResources = nullptr;
     _liveScreen = LiveScreen(screen);
 
-    // Initialize sequencer grid - all steps off
-    for (int t = 0; t < NUM_TRACKS; t++) {
-        for (int s = 0; s < NUM_STEPS; s++) {
-            _sequencerGrid[t][s] = false;
-        }
-    }
-
-    _currentStep = 0;
-    _currentBPM = 120;
-    _isPlaying = false;
+    // _sequencer initialized by its constructor
 
     // Initialize track volumes to match AudioResources default (0.5)
     for (int t = 0; t < NUM_TRACKS; t++) {
@@ -43,8 +36,9 @@ void Live::refresh() {
     // Load all SD files into memory when entering Live mode
     loadFileList();
 
-    _liveScreen.drawMainView(_sequencerGrid, _selectedTrackIndex, _currentStep,
-                             _currentBPM, _isPlaying, NUM_TRACKS, NUM_STEPS,
+    _liveScreen.drawMainView(_sequencer.getGrid(), _selectedTrackIndex,
+                             _sequencer.getCurrentStep(), _sequencer.getBPM(),
+                             _sequencer.isPlaying(), NUM_TRACKS, NUM_STEPS,
                              _currentPage, TRACK_LABELS, _tracks);
 
     // Cache all assigned samples when entering Live mode
@@ -54,8 +48,9 @@ void Live::refresh() {
 void Live::updateDisplay() {
     if (_displayNeedsUpdate && currentState == LIVE_MAIN) {
         _displayNeedsUpdate = false;
-        _liveScreen.drawMainView(_sequencerGrid, _selectedTrackIndex,
-                                 _currentStep, _currentBPM, _isPlaying,
+        _liveScreen.drawMainView(_sequencer.getGrid(), _selectedTrackIndex,
+                                 _sequencer.getCurrentStep(),
+                                 _sequencer.getBPM(), _sequencer.isPlaying(),
                                  NUM_TRACKS, NUM_STEPS, _currentPage,
                                  TRACK_LABELS, _tracks);
         updateLEDs();
@@ -75,7 +70,7 @@ void Live::setAudioResources(AudioResources* audioResources) {
 
 long Live::receiveTimerTick() {
     // Keep playing even in sample select mode
-    if (_isPlaying &&
+    if (_sequencer.isPlaying() &&
         (currentState == LIVE_MAIN || currentState == LIVE_SAMPLE_SELECT)) {
         advanceStep();
         return calculateStepIntervalMicros();
@@ -115,8 +110,9 @@ void Live::handleEvent(Controls::ButtonEvent event) {
                         if (targetPage != _currentPage) {
                             _currentPage = targetPage;
                             _liveScreen.drawMainView(
-                                _sequencerGrid, _selectedTrackIndex,
-                                _currentStep, _currentBPM, _isPlaying,
+                                _sequencer.getGrid(), _selectedTrackIndex,
+                                _sequencer.getCurrentStep(),
+                                _sequencer.getBPM(), _sequencer.isPlaying(),
                                 NUM_TRACKS, NUM_STEPS, _currentPage,
                                 TRACK_LABELS, _tracks);
                             updateLEDs();
@@ -176,9 +172,10 @@ void Live::handleEvent(Controls::ButtonEvent event) {
 
                 // Redraw screen with volume display
                 _liveScreen.drawMainView(
-                    _sequencerGrid, _selectedTrackIndex, _currentStep,
-                    _currentBPM, _isPlaying, NUM_TRACKS, NUM_STEPS,
-                    _currentPage, TRACK_LABELS, _tracks, _activeVolumeTrack,
+                    _sequencer.getGrid(), _selectedTrackIndex,
+                    _sequencer.getCurrentStep(), _sequencer.getBPM(),
+                    _sequencer.isPlaying(), NUM_TRACKS, NUM_STEPS, _currentPage,
+                    TRACK_LABELS, _tracks, _activeVolumeTrack,
                     _trackVolumes[_activeVolumeTrack]);
 
                 return;  // Exit early - don't process as normal encoder
@@ -200,10 +197,11 @@ void Live::handleEvent(Controls::ButtonEvent event) {
                 // Restore all LEDs to sequencer pattern
                 updateLEDs();
                 // Redraw without volume display
-                _liveScreen.drawMainView(_sequencerGrid, _selectedTrackIndex,
-                                         _currentStep, _currentBPM, _isPlaying,
-                                         NUM_TRACKS, NUM_STEPS, _currentPage,
-                                         TRACK_LABELS, _tracks);
+                _liveScreen.drawMainView(
+                    _sequencer.getGrid(), _selectedTrackIndex,
+                    _sequencer.getCurrentStep(), _sequencer.getBPM(),
+                    _sequencer.isPlaying(), NUM_TRACKS, NUM_STEPS, _currentPage,
+                    TRACK_LABELS, _tracks);
             }
         }
 
@@ -214,10 +212,11 @@ void Live::handleEvent(Controls::ButtonEvent event) {
             _selectedTrackIndex =
                 constrain(_selectedTrackIndex, 0, NUM_TRACKS - 1);
             _currentPage = 0;  // Reset page when changing track
-            _liveScreen.drawMainView(_sequencerGrid, _selectedTrackIndex,
-                                     _currentStep, _currentBPM, _isPlaying,
-                                     NUM_TRACKS, NUM_STEPS, _currentPage,
-                                     TRACK_LABELS, _tracks);
+            _liveScreen.drawMainView(
+                _sequencer.getGrid(), _selectedTrackIndex,
+                _sequencer.getCurrentStep(), _sequencer.getBPM(),
+                _sequencer.isPlaying(), NUM_TRACKS, NUM_STEPS, _currentPage,
+                TRACK_LABELS, _tracks);
             updateLEDs();
             return;
         }
@@ -228,10 +227,11 @@ void Live::handleEvent(Controls::ButtonEvent event) {
             if (event.buttonId == 0 && event.encoderValue != 0) {
                 _currentPage += event.encoderValue;
                 _currentPage = constrain(_currentPage, 0, 3);
-                _liveScreen.drawMainView(_sequencerGrid, _selectedTrackIndex,
-                                         _currentStep, _currentBPM, _isPlaying,
-                                         NUM_TRACKS, NUM_STEPS, _currentPage,
-                                         TRACK_LABELS, _tracks);
+                _liveScreen.drawMainView(
+                    _sequencer.getGrid(), _selectedTrackIndex,
+                    _sequencer.getCurrentStep(), _sequencer.getBPM(),
+                    _sequencer.isPlaying(), NUM_TRACKS, NUM_STEPS, _currentPage,
+                    TRACK_LABELS, _tracks);
                 updateLEDs();
                 return;
             }
@@ -253,15 +253,16 @@ void Live::handleEvent(Controls::ButtonEvent event) {
             }
             // Button 5 + Button 4 - toggle play/pause
             if (event.buttonId == 4 && event.state == PRESSED) {
-                if (_isPlaying) {
+                if (_sequencer.isPlaying()) {
                     stopPlayback();
                 } else {
                     startPlayback();
                 }
-                _liveScreen.drawMainView(_sequencerGrid, _selectedTrackIndex,
-                                         _currentStep, _currentBPM, _isPlaying,
-                                         NUM_TRACKS, NUM_STEPS, _currentPage,
-                                         TRACK_LABELS, _tracks);
+                _liveScreen.drawMainView(
+                    _sequencer.getGrid(), _selectedTrackIndex,
+                    _sequencer.getCurrentStep(), _sequencer.getBPM(),
+                    _sequencer.isPlaying(), NUM_TRACKS, NUM_STEPS, _currentPage,
+                    TRACK_LABELS, _tracks);
                 return;
             }
         }
@@ -317,10 +318,11 @@ void Live::handleEvent(Controls::ButtonEvent event) {
                 !_volumeControlWasUsed) {
                 int stepIndex = (_currentPage * 4) + (event.buttonId - 1);
                 toggleStep(_selectedTrackIndex, stepIndex);
-                _liveScreen.drawMainView(_sequencerGrid, _selectedTrackIndex,
-                                         _currentStep, _currentBPM, _isPlaying,
-                                         NUM_TRACKS, NUM_STEPS, _currentPage,
-                                         TRACK_LABELS, _tracks);
+                _liveScreen.drawMainView(
+                    _sequencer.getGrid(), _selectedTrackIndex,
+                    _sequencer.getCurrentStep(), _sequencer.getBPM(),
+                    _sequencer.isPlaying(), NUM_TRACKS, NUM_STEPS, _currentPage,
+                    TRACK_LABELS, _tracks);
                 updateLEDs();
             }
             // Reset volume control flag after button release
@@ -344,10 +346,11 @@ void Live::handleEvent(Controls::ButtonEvent event) {
         // Button 1 (back) - return to main view
         if (event.buttonId == 1 && event.state == PRESSED) {
             currentState = LIVE_MAIN;
-            _liveScreen.drawMainView(_sequencerGrid, _selectedTrackIndex,
-                                     _currentStep, _currentBPM, _isPlaying,
-                                     NUM_TRACKS, NUM_STEPS, _currentPage,
-                                     TRACK_LABELS, _tracks);
+            _liveScreen.drawMainView(
+                _sequencer.getGrid(), _selectedTrackIndex,
+                _sequencer.getCurrentStep(), _sequencer.getBPM(),
+                _sequencer.isPlaying(), NUM_TRACKS, NUM_STEPS, _currentPage,
+                TRACK_LABELS, _tracks);
             updateLEDs();
             return;
         }
@@ -356,10 +359,11 @@ void Live::handleEvent(Controls::ButtonEvent event) {
         if (event.buttonId == 4 && event.state == PRESSED) {
             assignSampleToTrack();
             currentState = LIVE_MAIN;
-            _liveScreen.drawMainView(_sequencerGrid, _selectedTrackIndex,
-                                     _currentStep, _currentBPM, _isPlaying,
-                                     NUM_TRACKS, NUM_STEPS, _currentPage,
-                                     TRACK_LABELS, _tracks);
+            _liveScreen.drawMainView(
+                _sequencer.getGrid(), _selectedTrackIndex,
+                _sequencer.getCurrentStep(), _sequencer.getBPM(),
+                _sequencer.isPlaying(), NUM_TRACKS, NUM_STEPS, _currentPage,
+                TRACK_LABELS, _tracks);
             updateLEDs();
             return;
         }
@@ -368,10 +372,11 @@ void Live::handleEvent(Controls::ButtonEvent event) {
         if (event.buttonId == 3 && event.state == PRESSED) {
             clearTrack(_selectedTrackIndex);
             currentState = LIVE_MAIN;
-            _liveScreen.drawMainView(_sequencerGrid, _selectedTrackIndex,
-                                     _currentStep, _currentBPM, _isPlaying,
-                                     NUM_TRACKS, NUM_STEPS, _currentPage,
-                                     TRACK_LABELS, _tracks);
+            _liveScreen.drawMainView(
+                _sequencer.getGrid(), _selectedTrackIndex,
+                _sequencer.getCurrentStep(), _sequencer.getBPM(),
+                _sequencer.isPlaying(), NUM_TRACKS, NUM_STEPS, _currentPage,
+                TRACK_LABELS, _tracks);
             updateLEDs();
             return;
         }
@@ -510,27 +515,29 @@ void Live::stopAllTracks() {
 }
 
 void Live::startPlayback() {
-    _isPlaying = true;
-    _currentStep = -1;  // Will advance to 0 on first tick
+    _sequencer.start();
+    // Play the first step immediately and reset the timer
+    advanceStep();
+    if (_timerCallback) {
+        _timerCallback(calculateStepIntervalMicros());
+    }
 }
 
 void Live::stopPlayback() {
-    _isPlaying = false;
+    _sequencer.stop();
     stopAllTracks();
 }
 
 void Live::toggleStep(int track, int step) {
-    if (track >= 0 && track < NUM_TRACKS && step >= 0 && step < NUM_STEPS) {
-        _sequencerGrid[track][step] = !_sequencerGrid[track][step];
-    }
+    _sequencer.toggleStep(track, step);
 }
 
 void Live::advanceStep() {
-    _currentStep = (_currentStep + 1) % NUM_STEPS;
+    int _currentStep = _sequencer.advance();
 
     // Trigger tracks with enabled steps (audio logic only - no display)
     for (int t = 0; t < NUM_TRACKS; t++) {
-        if (_sequencerGrid[t][_currentStep] && _tracks[t].isAssigned) {
+        if (_sequencer.isTrackActive(t) && _tracks[t].isAssigned) {
             playTrack(t);
         }
     }
@@ -543,8 +550,7 @@ void Live::advanceStep() {
 }
 
 int Live::calculateStepIntervalMicros() {
-    // 16th note = (60 / BPM / 4) seconds = (60000000 / BPM / 4) microseconds
-    return (60000000 / _currentBPM / 4);
+    return _sequencer.calculateStepIntervalMicros();
 }
 
 String Live::getFileNameWithoutExtension(const String& fileName) {
@@ -563,7 +569,7 @@ void Live::updateLEDs() {
         int stepIndex = pageStartStep + i;
         int buttonId = i + 1;  // Buttons 1-4
 
-        bool stepEnabled = _sequencerGrid[_selectedTrackIndex][stepIndex];
+        bool stepEnabled = _sequencer.getStep(_selectedTrackIndex, stepIndex);
 
         if (stepEnabled) {
             // Solid on

@@ -8,15 +8,18 @@
 #include "../gui/screens/LiveScreen.h"
 #include "../hardware/Controls.h"
 #include "../helper/AudioResources.h"
+#include "../helper/StepSequencer.h"
 #include "../helper/Track.hpp"
 #include "../main.h"
 
 class Live {
    public:
     typedef void (*NavigationCallback)(AppContext newContext);
+    typedef void (*TimerResetCallback)(long intervalMicros);
 
     Live(Controls* keyboard, Screen* screen,
-         NavigationCallback navCallback = nullptr);
+         NavigationCallback navCallback = nullptr,
+         TimerResetCallback timerCallback = nullptr);
     ~Live();
 
     void refresh();
@@ -26,14 +29,15 @@ class Live {
     long receiveTimerTick();
 
     enum LiveState {
-        LIVE_MAIN = 0,           // Main sequencer view (all tracks in one page)
-        LIVE_SAMPLE_SELECT = 1   // Selecting a sample for a track
+        LIVE_MAIN = 0,          // Main sequencer view (all tracks in one page)
+        LIVE_SAMPLE_SELECT = 1  // Selecting a sample for a track
     };
 
     LiveState currentState = LIVE_MAIN;
 
    private:
     NavigationCallback _navCallback;
+    TimerResetCallback _timerCallback;
     Controls* _keyboard;
     Screen* _screen;
     AudioResources* _audioResources;
@@ -52,16 +56,13 @@ class Live {
     static const char* TRACK_LABELS[NUM_TRACKS];
 
     // Volume control constants
-    static constexpr float VOLUME_STEP = 0.05f;   // 5% per encoder tick
+    static constexpr float VOLUME_STEP = 0.05f;  // 5% per encoder tick
     static constexpr float VOLUME_MIN = 0.0f;
     static constexpr float VOLUME_MAX = 1.0f;
 
-    // Sequencer data
-    bool _sequencerGrid[NUM_TRACKS][NUM_STEPS];  // Step pattern data
-    int _currentStep = 0;                         // Playhead position
-    int _currentBPM = 120;                        // BPM (60-180)
-    bool _isPlaying = false;                      // Playback state
-    int _currentPage = 0;                         // Page (0-3 for step ranges 0-3, 4-7, 8-11, 12-15)
+    // Sequencer
+    StepSequencer _sequencer;
+    int _currentPage = 0;  // Page (0-3 for step ranges 0-3, 4-7, 8-11, 12-15)
 
     // File list for sample selection
     int _selectedFileIndex = 0;
@@ -73,7 +74,8 @@ class Live {
 
     // Memory tracking
     unsigned long _lastMemoryLogTime = 0;
-    static const unsigned long MEMORY_LOG_INTERVAL = 5000;  // Log every 5 seconds
+    static const unsigned long MEMORY_LOG_INTERVAL =
+        5000;  // Log every 5 seconds
 
     // Button combination tracking for order-dependent behaviors
     bool _button1WasPressed = false;
@@ -83,9 +85,11 @@ class Live {
     bool _button5UsedForCombo = false;  // Track if B5 was used in a combo
 
     // Volume control state
-    int _activeVolumeTrack = -1;  // -1 = no control active, 0-3 = track being adjusted
+    int _activeVolumeTrack =
+        -1;  // -1 = no control active, 0-3 = track being adjusted
     bool _volumeControlActive = false;
-    bool _volumeControlWasUsed = false;  // Track if volume control was used to prevent step toggle
+    bool _volumeControlWasUsed =
+        false;  // Track if volume control was used to prevent step toggle
 
     // Private methods - business logic
     void loadFileList();
