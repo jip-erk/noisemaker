@@ -4,6 +4,7 @@ Screen::Screen() : u8g2(U8G2_R0, U8X8_PIN_NONE) {}
 
 void Screen::begin() {
     u8g2.begin();
+    u8g2.setBusClock(1000000);
     u8g2.clearBuffer();
 
     u8g2.setFont(u8g2_font_tiny5_tr);
