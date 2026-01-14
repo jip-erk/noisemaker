@@ -27,6 +27,10 @@ void Recorder::refresh() {
     _keyboard->triggerLedForButton(1, false);
     findHighestRecordingNumber();
     _recorderScreen.refresh();
+
+    if (_audioResources) {
+        _audioResources->enableLivePassthrough();
+    }
 }
 
 long Recorder::receiveTimerTick() {
@@ -101,14 +105,16 @@ void Recorder::handleEvent(Controls::ButtonEvent event) {
             } else {
                 // Button 4 alone = Play sample
                 String path = getFilePath(_recordedFileName);
-                const int WAV_HEADER_SIZE = 44;
-                uint32_t startByte =
-                    _recorderScreen.getSelectStart() * 2 + WAV_HEADER_SIZE;
-                uint32_t endByte =
-                    _recorderScreen.getSelectEnd() * 2 + WAV_HEADER_SIZE;
-                // _audioResources->playWav1.play(path.c_str(), startByte,
-                // endByte,
-                //                                1.0);
+                // AudioPlaySdWavExtended expects offsets relative to data start
+                // We use sample counts * 2 for byte offset, excluding header
+                // which the library handles
+                uint32_t startByte = _recorderScreen.getSelectStart() * 2;
+                uint32_t endByte = _recorderScreen.getSelectEnd() * 2;
+
+                if (_audioResources) {
+                    _audioResources->playRecordedWav.play(
+                        path.c_str(), startByte, endByte, 1.0);
+                }
             }
         }
         return;
@@ -376,10 +382,12 @@ void Recorder::findHighestRecordingNumber() {
         if (!entry) break;
 
         String filename = entry.name();
-        if (!entry.isDirectory() && (filename.endsWith(".wav") || filename.endsWith(".WAV"))) {
+        if (!entry.isDirectory() &&
+            (filename.endsWith(".wav") || filename.endsWith(".WAV"))) {
             // Parse filename: REC_XXXX.wav
             if (filename.startsWith("REC_")) {
-                String numberStr = filename.substring(4, 8);  // Extract "XXXX" from "REC_XXXX"
+                String numberStr =
+                    filename.substring(4, 8);  // Extract "XXXX" from "REC_XXXX"
                 uint32_t fileNumber = numberStr.toInt();
                 if (fileNumber > _recordingNumber) {
                     _recordingNumber = fileNumber;

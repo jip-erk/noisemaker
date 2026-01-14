@@ -5,8 +5,8 @@
 
 class StepSequencer {
    public:
-    static const int NUM_TRACKS = 4;
-    static const int NUM_STEPS = 16;
+    static const int NUM_TRACKS = 7;
+    static const int NUM_STEPS = 32;
 
     StepSequencer();
 

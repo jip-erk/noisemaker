@@ -24,17 +24,9 @@ void Home::drawMenu() {
 }
 
 void Home::handleEvent(Controls::ButtonEvent event) {
-    // Button 5 - Up navigation
-    if (event.buttonId == 5 && event.state == PRESSED) {
-        _selectedIndex--;
-        _selectedIndex = constrain(_selectedIndex, 0, NUM_MENU_ITEMS - 1);
-        drawMenu();
-        return;
-    }
-
-    // Button 3 - Down navigation
-    if (event.buttonId == 3 && event.state == PRESSED) {
-        _selectedIndex++;
+    // Encoder - Navigation
+    if (event.buttonId == 0 && event.encoderValue != 0) {
+        _selectedIndex -= event.encoderValue;
         _selectedIndex = constrain(_selectedIndex, 0, NUM_MENU_ITEMS - 1);
         drawMenu();
         return;

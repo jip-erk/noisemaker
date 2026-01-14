@@ -44,8 +44,8 @@ class Live {
     LiveScreen _liveScreen;
 
     // Track management
-    static const int NUM_TRACKS = 4;
-    static const int NUM_STEPS = 16;
+    static const int NUM_TRACKS = 7;
+    static const int NUM_STEPS = 32;
     Track _tracks[NUM_TRACKS];
     int _selectedTrackIndex = 0;
 
@@ -69,6 +69,7 @@ class Live {
     // Sequencer
     StepSequencer _sequencer;
     int _currentPage = 0;  // Page (0-3 for step ranges 0-3, 4-7, 8-11, 12-15)
+    int _stepRange = 0;    // Range offset (0 or 16)
 
     // File list for sample selection
     int _selectedFileIndex = 0;

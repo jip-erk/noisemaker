@@ -1,7 +1,8 @@
 #include "Live.h"
 
 // Track labels for display
-const char* Live::TRACK_LABELS[NUM_TRACKS] = {"A", "B", "C", "D"};
+const char* Live::TRACK_LABELS[NUM_TRACKS] = {"A", "B", "C", "D",
+                                              "E", "F", "G"};
 
 Live::Live(Controls* keyboard, Screen* screen, NavigationCallback navCallback,
            TimerResetCallback timerCallback) {
@@ -31,7 +32,12 @@ void Live::refresh() {
     currentState = LIVE_MAIN;
     _selectedTrackIndex = 0;
     _currentPage = 0;
+    _stepRange = 0;
     _displayNeedsUpdate = false;
+
+    if (_audioResources) {
+        _audioResources->disableLivePassthrough();
+    }
 
     // Load all SD files into memory when entering Live mode
     loadFileList();
@@ -39,8 +45,8 @@ void Live::refresh() {
     _liveScreen.drawMainView(
         _sequencer.getGrid(), _selectedTrackIndex, _sequencer.getCurrentStep(),
         _sequencer.getBPM(), _sequencer.isPlaying(), NUM_TRACKS, NUM_STEPS,
-        _currentPage, TRACK_LABELS, _tracks, _trackVolumes[_selectedTrackIndex],
-        _trackPitch[_selectedTrackIndex]);
+        _currentPage, _stepRange, TRACK_LABELS, _tracks,
+        _trackVolumes[_selectedTrackIndex], _trackPitch[_selectedTrackIndex]);
 
     // Cache all assigned samples when entering Live mode
     cacheSamples();
@@ -49,12 +55,13 @@ void Live::refresh() {
 void Live::updateDisplay() {
     if (_displayNeedsUpdate && currentState == LIVE_MAIN) {
         _displayNeedsUpdate = false;
-        _liveScreen.drawMainView(
-            _sequencer.getGrid(), _selectedTrackIndex,
-            _sequencer.getCurrentStep(), _sequencer.getBPM(),
-            _sequencer.isPlaying(), NUM_TRACKS, NUM_STEPS, _currentPage,
-            TRACK_LABELS, _tracks, _trackVolumes[_selectedTrackIndex],
-            _trackPitch[_selectedTrackIndex]);
+        _liveScreen.drawMainView(_sequencer.getGrid(), _selectedTrackIndex,
+                                 _sequencer.getCurrentStep(),
+                                 _sequencer.getBPM(), _sequencer.isPlaying(),
+                                 NUM_TRACKS, NUM_STEPS, _currentPage,
+                                 _stepRange, TRACK_LABELS, _tracks,
+                                 _trackVolumes[_selectedTrackIndex],
+                                 _trackPitch[_selectedTrackIndex]);
         updateLEDs();
     }
 }
@@ -65,7 +72,11 @@ void Live::setAudioResources(AudioResources* audioResources) {
     // Sync mixer gains with stored volumes
     if (_audioResources) {
         for (int i = 0; i < NUM_TRACKS; i++) {
-            _audioResources->mixer4.gain(i, _trackVolumes[i]);
+            if (i < 4) {
+                _audioResources->mixer4.gain(i, _trackVolumes[i]);
+            } else {
+                _audioResources->mixer4_2.gain(i - 4, _trackVolumes[i]);
+            }
         }
     }
 }
@@ -86,54 +97,56 @@ void Live::handleEvent(Controls::ButtonEvent event) {
         // Button 5 press/release - control LEDs and detect B1-B4 combos
         if (event.buttonId == 5) {
             if (event.state == PRESSED) {
-                // Check for B1-B4 held + B5 pressed combo (navigate to page)
+                // Check for B1-B4 held + B5 pressed combo (set step on ALL
+                // pages)
                 if (event.button1Held || event.button2Held ||
                     event.button3Held || event.button4Held) {
-                    int targetPage = -1;
-                    if (event.button1Held)
-                        targetPage = 0;
-                    else if (event.button2Held)
-                        targetPage = 1;
-                    else if (event.button3Held)
-                        targetPage = 2;
-                    else if (event.button4Held)
-                        targetPage = 3;
+                    _button5UsedForCombo = true;
 
-                    if (targetPage != -1) {
-                        _button5UsedForCombo = true;  // Mark that B5 was used
+                    // Clear the "was pressed" flags to prevent regular toggle
+                    _button1WasPressed = false;
+                    _button2WasPressed = false;
+                    _button3WasPressed = false;
+                    _button4WasPressed = false;
 
-                        // Clear the "was pressed" flags to prevent step toggle
-                        _button1WasPressed = false;
-                        _button2WasPressed = false;
-                        _button3WasPressed = false;
-                        _button4WasPressed = false;
+                    // Determine which buttons are held and toggle those steps
+                    // on ALL pages
+                    for (int btn = 1; btn <= 4; btn++) {
+                        bool isHeld = false;
+                        if (btn == 1)
+                            isHeld = event.button1Held;
+                        else if (btn == 2)
+                            isHeld = event.button2Held;
+                        else if (btn == 3)
+                            isHeld = event.button3Held;
+                        else if (btn == 4)
+                            isHeld = event.button4Held;
 
-                        // Only navigate and redraw if page actually changes
-                        if (targetPage != _currentPage) {
-                            _currentPage = targetPage;
-                            _liveScreen.drawMainView(
-                                _sequencer.getGrid(), _selectedTrackIndex,
-                                _sequencer.getCurrentStep(),
-                                _sequencer.getBPM(), _sequencer.isPlaying(),
-                                NUM_TRACKS, NUM_STEPS, _currentPage,
-                                TRACK_LABELS, _tracks,
-                                _trackVolumes[_selectedTrackIndex],
-                                _trackPitch[_selectedTrackIndex]);
-                            updateLEDs();
+                        if (isHeld) {
+                            // Apply to all 8 pages (32 steps total)
+                            int stepOffset = btn - 1;
+                            for (int page = 0; page < 8; page++) {
+                                int targetStep = (page * 4) + stepOffset;
+                                toggleStep(_selectedTrackIndex, targetStep);
+                            }
                         }
-                        return;
                     }
-                }
 
-                // No combo - turn off all LEDs when button 5 is pressed alone
-                for (int i = 1; i <= 4; i++) {
-                    _keyboard->triggerLedForButton(i, false);
+                    // Update display
+                    _stepRange = (_currentPage >= 4) ? 16 : 0;
+                    _liveScreen.drawMainView(
+                        _sequencer.getGrid(), _selectedTrackIndex,
+                        _sequencer.getCurrentStep(), _sequencer.getBPM(),
+                        _sequencer.isPlaying(), NUM_TRACKS, NUM_STEPS,
+                        _currentPage, _stepRange, TRACK_LABELS, _tracks,
+                        _trackVolumes[_selectedTrackIndex],
+                        _trackPitch[_selectedTrackIndex]);
+                    updateLEDs();
+                    return;
                 }
             } else {
                 // Reset combo flag on release
                 _button5UsedForCombo = false;
-                // Restore LED state when button 5 is released
-                updateLEDs();
             }
             return;
         }
@@ -162,7 +175,8 @@ void Live::handleEvent(Controls::ButtonEvent event) {
                     _sequencer.getGrid(), _selectedTrackIndex,
                     _sequencer.getCurrentStep(), _sequencer.getBPM(),
                     _sequencer.isPlaying(), NUM_TRACKS, NUM_STEPS, _currentPage,
-                    TRACK_LABELS, _tracks, _trackVolumes[_selectedTrackIndex],
+                    _stepRange, TRACK_LABELS, _tracks,
+                    _trackVolumes[_selectedTrackIndex],
                     _trackPitch[_selectedTrackIndex]);
                 return;
             }
@@ -190,7 +204,8 @@ void Live::handleEvent(Controls::ButtonEvent event) {
                     _sequencer.getGrid(), _selectedTrackIndex,
                     _sequencer.getCurrentStep(), _sequencer.getBPM(),
                     _sequencer.isPlaying(), NUM_TRACKS, NUM_STEPS, _currentPage,
-                    TRACK_LABELS, _tracks, _trackVolumes[_selectedTrackIndex],
+                    _stepRange, TRACK_LABELS, _tracks,
+                    _trackVolumes[_selectedTrackIndex],
                     _trackPitch[_selectedTrackIndex]);
                 return;
             }
@@ -210,7 +225,8 @@ void Live::handleEvent(Controls::ButtonEvent event) {
                 _sequencer.getGrid(), _selectedTrackIndex,
                 _sequencer.getCurrentStep(), _sequencer.getBPM(),
                 _sequencer.isPlaying(), NUM_TRACKS, NUM_STEPS, _currentPage,
-                TRACK_LABELS, _tracks, _trackVolumes[_selectedTrackIndex],
+                _stepRange, TRACK_LABELS, _tracks,
+                _trackVolumes[_selectedTrackIndex],
                 _trackPitch[_selectedTrackIndex]);
         }
 
@@ -225,7 +241,8 @@ void Live::handleEvent(Controls::ButtonEvent event) {
                 _sequencer.getGrid(), _selectedTrackIndex,
                 _sequencer.getCurrentStep(), _sequencer.getBPM(),
                 _sequencer.isPlaying(), NUM_TRACKS, NUM_STEPS, _currentPage,
-                TRACK_LABELS, _tracks, _trackVolumes[_selectedTrackIndex],
+                _stepRange, TRACK_LABELS, _tracks,
+                _trackVolumes[_selectedTrackIndex],
                 _trackPitch[_selectedTrackIndex]);
             updateLEDs();
             return;
@@ -233,15 +250,20 @@ void Live::handleEvent(Controls::ButtonEvent event) {
 
         // Button 5 held combinations
         if (event.button5Held) {
-            // Button 5 + Encoder - change pages
+            // Button 5 + Encoder - change page (0-7)
             if (event.buttonId == 0 && event.encoderValue != 0) {
                 _currentPage += event.encoderValue;
-                _currentPage = constrain(_currentPage, 0, 3);
+                _currentPage = constrain(_currentPage, 0, 7);
+
+                // Update step range based on current page
+                _stepRange = (_currentPage >= 4) ? 16 : 0;
+
                 _liveScreen.drawMainView(
                     _sequencer.getGrid(), _selectedTrackIndex,
                     _sequencer.getCurrentStep(), _sequencer.getBPM(),
                     _sequencer.isPlaying(), NUM_TRACKS, NUM_STEPS, _currentPage,
-                    TRACK_LABELS, _tracks, _trackVolumes[_selectedTrackIndex],
+                    _stepRange, TRACK_LABELS, _tracks,
+                    _trackVolumes[_selectedTrackIndex],
                     _trackPitch[_selectedTrackIndex]);
                 updateLEDs();
                 return;
@@ -273,7 +295,8 @@ void Live::handleEvent(Controls::ButtonEvent event) {
                     _sequencer.getGrid(), _selectedTrackIndex,
                     _sequencer.getCurrentStep(), _sequencer.getBPM(),
                     _sequencer.isPlaying(), NUM_TRACKS, NUM_STEPS, _currentPage,
-                    TRACK_LABELS, _tracks, _trackVolumes[_selectedTrackIndex],
+                    _stepRange, TRACK_LABELS, _tracks,
+                    _trackVolumes[_selectedTrackIndex],
                     _trackPitch[_selectedTrackIndex]);
                 return;
             }
@@ -327,13 +350,21 @@ void Live::handleEvent(Controls::ButtonEvent event) {
             }
 
             if (shouldToggle && !_button5UsedForCombo && !_controlWasUsed) {
+                // Calculate step index based on current page (not just
+                // stepRange)
                 int stepIndex = (_currentPage * 4) + (event.buttonId - 1);
+
                 toggleStep(_selectedTrackIndex, stepIndex);
+
+                // Ensure display matches where we are
+                _stepRange = (_currentPage >= 4) ? 16 : 0;
+
                 _liveScreen.drawMainView(
                     _sequencer.getGrid(), _selectedTrackIndex,
                     _sequencer.getCurrentStep(), _sequencer.getBPM(),
                     _sequencer.isPlaying(), NUM_TRACKS, NUM_STEPS, _currentPage,
-                    TRACK_LABELS, _tracks, _trackVolumes[_selectedTrackIndex],
+                    _stepRange, TRACK_LABELS, _tracks,
+                    _trackVolumes[_selectedTrackIndex],
                     _trackPitch[_selectedTrackIndex]);
                 updateLEDs();
             }
@@ -362,7 +393,8 @@ void Live::handleEvent(Controls::ButtonEvent event) {
                 _sequencer.getGrid(), _selectedTrackIndex,
                 _sequencer.getCurrentStep(), _sequencer.getBPM(),
                 _sequencer.isPlaying(), NUM_TRACKS, NUM_STEPS, _currentPage,
-                TRACK_LABELS, _tracks, _trackVolumes[_selectedTrackIndex],
+                _stepRange, TRACK_LABELS, _tracks,
+                _trackVolumes[_selectedTrackIndex],
                 _trackPitch[_selectedTrackIndex]);
             updateLEDs();
             return;
@@ -376,7 +408,8 @@ void Live::handleEvent(Controls::ButtonEvent event) {
                 _sequencer.getGrid(), _selectedTrackIndex,
                 _sequencer.getCurrentStep(), _sequencer.getBPM(),
                 _sequencer.isPlaying(), NUM_TRACKS, NUM_STEPS, _currentPage,
-                TRACK_LABELS, _tracks, _trackVolumes[_selectedTrackIndex],
+                _stepRange, TRACK_LABELS, _tracks,
+                _trackVolumes[_selectedTrackIndex],
                 _trackPitch[_selectedTrackIndex]);
             updateLEDs();
             return;
@@ -390,7 +423,8 @@ void Live::handleEvent(Controls::ButtonEvent event) {
                 _sequencer.getGrid(), _selectedTrackIndex,
                 _sequencer.getCurrentStep(), _sequencer.getBPM(),
                 _sequencer.isPlaying(), NUM_TRACKS, NUM_STEPS, _currentPage,
-                TRACK_LABELS, _tracks, _trackVolumes[_selectedTrackIndex],
+                _stepRange, TRACK_LABELS, _tracks,
+                _trackVolumes[_selectedTrackIndex],
                 _trackPitch[_selectedTrackIndex]);
             updateLEDs();
             return;
@@ -476,29 +510,23 @@ void Live::playTrack(int trackIndex) {
         case 3:
             player = &_audioResources->playSdWav3;
             break;
+        case 4:
+            player = &_audioResources->playSdWav4;
+            break;
+        case 5:
+            player = &_audioResources->playSdWav5;
+            break;
+        case 6:
+            player = &_audioResources->playSdWav6;
+            break;
     }
 
     if (player) {
         // String wavPath = _tracks[trackIndex].getWavPath();
-        String wavPath = _tracks[trackIndex]
-                             .fileName;  // VariablePlayback uses playWav(char*)
-                                         // which takes a filename, likely
-                                         // relative to current wrapper or root.
-        // The original logic constructed "/RECORDINGS/" + filename.
-        // NOTE: TeensyVariablePlayback might require just the filename if SD
-        // root is not handled inside, or full path. Assuming implementation of
-        // TeensyVariablePlayback wrapper follows standard SD lib logic. Let's
-        // use the full path to be safe, but cast to C string as expected.
+        String wavPath = _tracks[trackIndex].fileName;
         String fullPath = _tracks[trackIndex].getWavPath();
 
-        // However, the example user provided used "DEMO.WAV" directly.
-        // If the library expects a char*, let's assume valid SD path.
-        // But the previous implementation used `play(const char*)`.
-        // `playSdWav` in AudioResources.h was `AudioPlaySdWav`, now it is
-        // `AudioPlaySdResmp`. `AudioPlaySdResmp` (TeensyVariablePlayback)
-        // usually has `playWav(char *filename)`.
-
-        // Wait, the user example says: playSdWav1.playWav(_filename);
+        playWav(_filename);
 
         AudioNoInterrupts();
 
@@ -538,6 +566,15 @@ void Live::stopTrack(int trackIndex) {
             break;
         case 3:
             player = &_audioResources->playSdWav3;
+            break;
+        case 4:
+            player = &_audioResources->playSdWav4;
+            break;
+        case 5:
+            player = &_audioResources->playSdWav5;
+            break;
+        case 6:
+            player = &_audioResources->playSdWav6;
             break;
     }
 
@@ -632,7 +669,12 @@ void Live::setTrackVolume(int trackIndex, float volume) {
 
     // Apply to mixer if audio resources are available
     if (_audioResources) {
-        _audioResources->mixer4.gain(trackIndex, _trackVolumes[trackIndex]);
+        if (trackIndex < 4) {
+            _audioResources->mixer4.gain(trackIndex, _trackVolumes[trackIndex]);
+        } else {
+            _audioResources->mixer4_2.gain(trackIndex - 4,
+                                           _trackVolumes[trackIndex]);
+        }
     }
 }
 
@@ -644,29 +686,6 @@ float Live::getTrackVolume(int trackIndex) const {
 void Live::setTrackPitch(int trackIndex, float pitch) {
     if (trackIndex < 0 || trackIndex >= NUM_TRACKS) return;
     _trackPitch[trackIndex] = constrain(pitch, PITCH_MIN, PITCH_MAX);
-
-    // // Apply immediate pitch change if audio resources are available
-    // if (_audioResources) {
-    //     AudioPlaySdResmp* player = nullptr;
-    //     switch (trackIndex) {
-    //         case 0:
-    //             player = &_audioResources->playSdWav;
-    //             break;
-    //         case 1:
-    //             player = &_audioResources->playSdWav1;
-    //             break;
-    //         case 2:
-    //             player = &_audioResources->playSdWav2;
-    //             break;
-    //         case 3:
-    //             player = &_audioResources->playSdWav3;
-    //             break;
-    //     }
-
-    //     if (player) {
-    //         player->setPlaybackRate(_trackPitch[trackIndex]);
-    //     }
-    // }
 }
 
 float Live::getTrackPitch(int trackIndex) const {

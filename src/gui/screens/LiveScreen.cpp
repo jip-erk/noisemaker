@@ -105,11 +105,12 @@ void LiveScreen::drawSampleSelect(const String* fileList, int selectedFileIndex,
     _screen->display();
 }
 
-void LiveScreen::drawMainView(const bool sequencerGrid[][16], int selectedTrack,
+void LiveScreen::drawMainView(const bool sequencerGrid[][32], int selectedTrack,
                               int currentStep, int currentBPM, bool isPlaying,
                               int numTracks, int numSteps, int currentPage,
-                              const char** trackLabels, const Track* tracks,
-                              float currentVolume, float currentPitch) {
+                              int stepRange, const char** trackLabels,
+                              const Track* tracks, float currentVolume,
+                              float currentPitch) {
     _screen->clear();
 
     // ===== Header Layout =====
@@ -240,7 +241,10 @@ void LiveScreen::drawMainView(const bool sequencerGrid[][16], int selectedTrack,
 
     // Standard footer
     char footer[30];
-    sprintf(footer, "Pg %d/4", currentPage + 1);
+    int displayRangeStart = stepRange + 1;
+    int displayRangeEnd = stepRange + 16;
+    sprintf(footer, "Pg %d/8 (%d-%d)", currentPage + 1, displayRangeStart,
+            displayRangeEnd);
     _screen->drawStr(0, 63, footer);
 
     _screen->display();
