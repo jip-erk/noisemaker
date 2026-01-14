@@ -45,8 +45,16 @@ class Live {
     Track _tracks[NUM_TRACKS];
     int _selectedTrackIndex = 0;
 
+    // Track volume control (0.0 to 1.0)
+    float _trackVolumes[NUM_TRACKS];
+
     // Track labels for display
     static const char* TRACK_LABELS[NUM_TRACKS];
+
+    // Volume control constants
+    static constexpr float VOLUME_STEP = 0.05f;   // 5% per encoder tick
+    static constexpr float VOLUME_MIN = 0.0f;
+    static constexpr float VOLUME_MAX = 1.0f;
 
     // Sequencer data
     bool _sequencerGrid[NUM_TRACKS][NUM_STEPS];  // Step pattern data
@@ -74,6 +82,11 @@ class Live {
     bool _button4WasPressed = false;
     bool _button5UsedForCombo = false;  // Track if B5 was used in a combo
 
+    // Volume control state
+    int _activeVolumeTrack = -1;  // -1 = no control active, 0-3 = track being adjusted
+    bool _volumeControlActive = false;
+    bool _volumeControlWasUsed = false;  // Track if volume control was used to prevent step toggle
+
     // Private methods - business logic
     void loadFileList();
     void assignSampleToTrack();
@@ -82,6 +95,8 @@ class Live {
     void stopTrack(int trackIndex);
     void stopAllTracks();
     String getFileNameWithoutExtension(const String& fileName);
+    void setTrackVolume(int trackIndex, float volume);
+    float getTrackVolume(int trackIndex) const;
     void updateTrackDisplay();
 
     // Sequencer methods

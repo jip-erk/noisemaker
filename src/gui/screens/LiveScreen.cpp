@@ -108,7 +108,8 @@ void LiveScreen::drawSampleSelect(const String* fileList, int selectedFileIndex,
 void LiveScreen::drawMainView(const bool sequencerGrid[][16], int selectedTrack,
                               int currentStep, int currentBPM, bool isPlaying,
                               int numTracks, int numSteps, int currentPage,
-                              const char** trackLabels, const Track* tracks) {
+                              const char** trackLabels, const Track* tracks,
+                              int activeVolumeTrack, float activeVolume) {
     _screen->clear();
 
     // ===== Header Layout =====
@@ -169,9 +170,14 @@ void LiveScreen::drawMainView(const bool sequencerGrid[][16], int selectedTrack,
 
     // BPM on right side
 
-    // Footer with page info
+    // Footer with page info or volume display
     char footer[30];
-    sprintf(footer, "Page %d/4", currentPage + 1);
+    if (activeVolumeTrack >= 0 && activeVolumeTrack < 4) {
+        int volumePercent = (int)(activeVolume * 100);
+        sprintf(footer, "T%d Vol:%d%%", activeVolumeTrack + 1, volumePercent);
+    } else {
+        sprintf(footer, "Page %d/4", currentPage + 1);
+    }
     _screen->drawStr(0, 63, footer);
 
     _screen->display();
