@@ -24,8 +24,8 @@ class Controls {
     // LED pins
     static const byte ledPin1 = 2;
     static const byte ledPin2 = 15;
-    static const byte ledPin3 = 13;
-    static const byte ledPin4 = 9;
+    static const byte ledPin3 = 9;
+    static const byte ledPin4 = 14;
 
     // Event structure
     struct ButtonEvent {
@@ -51,6 +51,7 @@ class Controls {
 
     // LED management
     void triggerLedForButton(uint8_t buttonId, bool isPressed);
+    void triggerLedForButton(uint8_t buttonId, uint8_t brightness);
 
    private:
     Encoder encoder;

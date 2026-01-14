@@ -52,8 +52,7 @@ Controls::Controls()
     // Setup LED pins as outputs
 
     digitalWrite(ledPin1, LOW);
-    digitalWrite(ledPin2,
-                 LOW);  // LED on pin 20 OFF by default (cathode wired to pin)
+    digitalWrite(ledPin2, LOW);
     digitalWrite(ledPin3, LOW);
     digitalWrite(ledPin4, LOW);
 }
@@ -161,5 +160,11 @@ bool Controls::isComboPressed(uint8_t btn1, uint8_t btn2, uint8_t btn3) {
 void Controls::triggerLedForButton(uint8_t buttonId, bool isPressed) {
     if (buttonId < 7 && ledPinMap[buttonId] >= 0) {
         digitalWrite(ledPinMap[buttonId], isPressed ? HIGH : LOW);
+    }
+}
+
+void Controls::triggerLedForButton(uint8_t buttonId, uint8_t brightness) {
+    if (buttonId < 7 && ledPinMap[buttonId] >= 0) {
+        analogWrite(ledPinMap[buttonId], brightness);
     }
 }

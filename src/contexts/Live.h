@@ -20,17 +20,17 @@ class Live {
     ~Live();
 
     void refresh();
+    void updateDisplay();
     void handleEvent(Controls::ButtonEvent);
     void setAudioResources(AudioResources* audioResources);
     long receiveTimerTick();
 
     enum LiveState {
-        LIVE_TRACK_VIEW = 0,     // Viewing/selecting tracks
-        LIVE_SAMPLE_SELECT = 1,  // Selecting a sample for a track
-        LIVE_SEQUENCER = 2       // Sequencer grid view
+        LIVE_MAIN = 0,           // Main sequencer view (all tracks in one page)
+        LIVE_SAMPLE_SELECT = 1   // Selecting a sample for a track
     };
 
-    LiveState currentState = LIVE_TRACK_VIEW;
+    LiveState currentState = LIVE_MAIN;
 
    private:
     NavigationCallback _navCallback;
@@ -53,11 +53,19 @@ class Live {
     int _currentStep = 0;                         // Playhead position
     int _currentBPM = 120;                        // BPM (60-180)
     bool _isPlaying = false;                      // Playback state
+    int _currentPage = 0;                         // Page (0-3 for step ranges 0-3, 4-7, 8-11, 12-15)
 
     // File list for sample selection
     int _selectedFileIndex = 0;
     int _fileCount = 0;
     String _fileList[20];  // Max 20 files
+
+    // Display update flag (decoupled from audio timing)
+    bool _displayNeedsUpdate = false;
+
+    // Memory tracking
+    unsigned long _lastMemoryLogTime = 0;
+    static const unsigned long MEMORY_LOG_INTERVAL = 5000;  // Log every 5 seconds
 
     // Private methods - business logic
     void loadFileList();
@@ -75,6 +83,9 @@ class Live {
     void toggleStep(int track, int step);
     void advanceStep();
     int calculateStepIntervalMicros();
+    void updateLEDs();
+    void logMemoryUsage();
+    void cacheSamples();
 };
 
 #endif

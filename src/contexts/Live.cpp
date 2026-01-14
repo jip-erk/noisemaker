@@ -1,7 +1,7 @@
 #include "Live.h"
 
 // Track labels for display
-const char* Live::TRACK_LABELS[NUM_TRACKS] = {"kick", "snare", "hat", "perc"};
+const char* Live::TRACK_LABELS[NUM_TRACKS] = {"A", "B", "C", "D"};
 
 Live::Live(Controls* keyboard, Screen* screen, NavigationCallback navCallback) {
     _keyboard = keyboard;
@@ -27,10 +27,26 @@ Live::~Live() {
 }
 
 void Live::refresh() {
-    currentState = LIVE_TRACK_VIEW;
+    currentState = LIVE_MAIN;
     _selectedTrackIndex = 0;
-    _liveScreen.drawTrackView(_tracks, _selectedTrackIndex, NUM_TRACKS,
-                              TRACK_LABELS);
+    _currentPage = 0;
+    _displayNeedsUpdate = false;
+    _liveScreen.drawMainView(_sequencerGrid, _selectedTrackIndex, _currentStep,
+                             _currentBPM, _isPlaying, NUM_TRACKS, NUM_STEPS,
+                             _currentPage, TRACK_LABELS);
+
+    // Cache all assigned samples when entering Live mode
+    cacheSamples();
+}
+
+void Live::updateDisplay() {
+    if (_displayNeedsUpdate && currentState == LIVE_MAIN) {
+        _displayNeedsUpdate = false;
+        _liveScreen.drawMainView(
+            _sequencerGrid, _selectedTrackIndex, _currentStep, _currentBPM,
+            _isPlaying, NUM_TRACKS, NUM_STEPS, _currentPage, TRACK_LABELS);
+        updateLEDs();
+    }
 }
 
 void Live::setAudioResources(AudioResources* audioResources) {
@@ -38,7 +54,9 @@ void Live::setAudioResources(AudioResources* audioResources) {
 }
 
 long Live::receiveTimerTick() {
-    if (_isPlaying && currentState == LIVE_SEQUENCER) {
+    // Keep playing even in sample select mode
+    if (_isPlaying &&
+        (currentState == LIVE_MAIN || currentState == LIVE_SAMPLE_SELECT)) {
         advanceStep();
         return calculateStepIntervalMicros();
     }
@@ -46,108 +64,141 @@ long Live::receiveTimerTick() {
 }
 
 void Live::handleEvent(Controls::ButtonEvent event) {
-    // Back button (button 1)
-    if (event.buttonId == 1 && event.state == PRESSED) {
-        if (currentState == LIVE_TRACK_VIEW) {
-            // Return to home
-            if (_navCallback) {
-                _navCallback(AppContext::HOME);
+    // State: LIVE_MAIN
+    if (currentState == LIVE_MAIN) {
+        // Button 5 press/release - control LEDs
+        if (event.buttonId == 5) {
+            if (event.state == PRESSED) {
+                // Turn off all LEDs when button 5 is pressed
+                for (int i = 1; i <= 4; i++) {
+                    _keyboard->triggerLedForButton(i, false);
+                }
+            } else {
+                // Restore LED state when button 5 is released
+                updateLEDs();
+            }
+            return;
+        }
+
+        // Encoder rotation - navigate tracks (only when button 5 not held)
+        if (event.buttonId == 0 && event.encoderValue != 0 &&
+            !event.button5Held) {
+            _selectedTrackIndex -= event.encoderValue;
+            _selectedTrackIndex =
+                constrain(_selectedTrackIndex, 0, NUM_TRACKS - 1);
+            _currentPage = 0;  // Reset page when changing track
+            _liveScreen.drawMainView(
+                _sequencerGrid, _selectedTrackIndex, _currentStep, _currentBPM,
+                _isPlaying, NUM_TRACKS, NUM_STEPS, _currentPage, TRACK_LABELS);
+            updateLEDs();
+            return;
+        }
+
+        // Button 5 held combinations
+        if (event.button5Held) {
+            // Button 5 + Encoder - change pages
+            if (event.buttonId == 0 && event.encoderValue != 0) {
+                _currentPage += event.encoderValue;
+                _currentPage = constrain(_currentPage, 0, 3);
+                _liveScreen.drawMainView(_sequencerGrid, _selectedTrackIndex,
+                                         _currentStep, _currentBPM, _isPlaying,
+                                         NUM_TRACKS, NUM_STEPS, _currentPage,
+                                         TRACK_LABELS);
+                updateLEDs();
                 return;
             }
-        } else if (currentState == LIVE_SAMPLE_SELECT) {
-            // Return to track view
-            currentState = LIVE_TRACK_VIEW;
-            _liveScreen.drawTrackView(_tracks, _selectedTrackIndex, NUM_TRACKS,
-                                      TRACK_LABELS);
-        } else if (currentState == LIVE_SEQUENCER) {
-            // Return to track view
-            if (_isPlaying) {
-                stopPlayback();
+
+            // Button 5 + Button 1 - show file selector
+            if (event.buttonId == 1 && event.state == PRESSED) {
+                loadFileList();
+                currentState = LIVE_SAMPLE_SELECT;
+                _selectedFileIndex = 0;
+                _liveScreen.drawSampleSelect(_fileList, _selectedFileIndex,
+                                             _fileCount);
+                return;
             }
-            currentState = LIVE_TRACK_VIEW;
-            _liveScreen.drawTrackView(_tracks, _selectedTrackIndex, NUM_TRACKS,
-                                      TRACK_LABELS);
-        }
-        return;
-    }
-
-    // Button 2 - Select/Confirm
-    if (event.buttonId == 2 && event.state == PRESSED) {
-        if (currentState == LIVE_TRACK_VIEW) {
-            // Enter sample selection for this track
-            loadFileList();
-            currentState = LIVE_SAMPLE_SELECT;
-            _selectedFileIndex = 0;
-            _liveScreen.drawSampleSelect(_fileList, _selectedFileIndex,
-                                         _fileCount);
-        } else if (currentState == LIVE_SAMPLE_SELECT) {
-            // Assign selected sample to track
-            assignSampleToTrack();
-            currentState = LIVE_TRACK_VIEW;
-            _liveScreen.drawTrackView(_tracks, _selectedTrackIndex, NUM_TRACKS,
-                                      TRACK_LABELS);
-        } else if (currentState == LIVE_SEQUENCER) {
-            // Toggle step at current playhead position
-            toggleStep(_selectedTrackIndex, _currentStep);
-            _liveScreen.drawSequencer(_sequencerGrid, _selectedTrackIndex,
-                                      _currentStep, _currentBPM, _isPlaying,
-                                      NUM_TRACKS, NUM_STEPS);
-        }
-        return;
-    }
-
-    // Button 3 - Action
-    if (event.buttonId == 3 && event.state == PRESSED) {
-        if (currentState == LIVE_TRACK_VIEW) {
-            // Enter sequencer view
-            currentState = LIVE_SEQUENCER;
-            _liveScreen.drawSequencer(_sequencerGrid, _selectedTrackIndex,
-                                      _currentStep, _currentBPM, _isPlaying,
-                                      NUM_TRACKS, NUM_STEPS);
-        } else if (currentState == LIVE_SAMPLE_SELECT) {
-            // Clear the track
-            clearTrack(_selectedTrackIndex);
-            currentState = LIVE_TRACK_VIEW;
-            _liveScreen.drawTrackView(_tracks, _selectedTrackIndex, NUM_TRACKS,
-                                      TRACK_LABELS);
-        } else if (currentState == LIVE_SEQUENCER) {
-            // Toggle playback
-            if (_isPlaying) {
-                stopPlayback();
-            } else {
-                startPlayback();
+            // Button 5 + Button 2 - exit to home
+            if (event.buttonId == 2 && event.state == PRESSED) {
+                if (_navCallback) {
+                    _navCallback(AppContext::HOME);
+                }
+                return;
             }
-            _liveScreen.drawSequencer(_sequencerGrid, _selectedTrackIndex,
-                                      _currentStep, _currentBPM, _isPlaying,
-                                      NUM_TRACKS, NUM_STEPS);
+            // Button 5 + Button 4 - toggle play/pause
+            if (event.buttonId == 4 && event.state == PRESSED) {
+                if (_isPlaying) {
+                    stopPlayback();
+                } else {
+                    startPlayback();
+                }
+                _liveScreen.drawMainView(_sequencerGrid, _selectedTrackIndex,
+                                         _currentStep, _currentBPM, _isPlaying,
+                                         NUM_TRACKS, NUM_STEPS, _currentPage,
+                                         TRACK_LABELS);
+                return;
+            }
         }
-        return;
+
+        // Buttons 1-4 (no button 5 held) - toggle steps in current page
+        if (event.buttonId >= 1 && event.buttonId <= 4 &&
+            event.state == PRESSED) {
+            if (!event.button5Held) {
+                // Calculate absolute step index from page and button
+                int stepIndex = (_currentPage * 4) + (event.buttonId - 1);
+                toggleStep(_selectedTrackIndex, stepIndex);
+                _liveScreen.drawMainView(_sequencerGrid, _selectedTrackIndex,
+                                         _currentStep, _currentBPM, _isPlaying,
+                                         NUM_TRACKS, NUM_STEPS, _currentPage,
+                                         TRACK_LABELS);
+                updateLEDs();
+                return;
+            }
+        }
     }
 
-    // Encoder - Navigation
-    if (event.buttonId == 0 && event.encoderValue != 0) {
-        if (currentState == LIVE_TRACK_VIEW) {
-            // Navigate tracks
-            _selectedTrackIndex += event.encoderValue;
-            _selectedTrackIndex = constrain(_selectedTrackIndex, 0, NUM_TRACKS - 1);
-            _liveScreen.drawTrackView(_tracks, _selectedTrackIndex, NUM_TRACKS,
-                                      TRACK_LABELS);
-        } else if (currentState == LIVE_SAMPLE_SELECT) {
-            // Navigate files
+    // State: LIVE_SAMPLE_SELECT
+    else if (currentState == LIVE_SAMPLE_SELECT) {
+        // Encoder rotation - navigate files
+        if (event.buttonId == 0 && event.encoderValue != 0) {
             _selectedFileIndex += event.encoderValue;
             _selectedFileIndex =
                 constrain(_selectedFileIndex, 0, max(0, _fileCount - 1));
             _liveScreen.drawSampleSelect(_fileList, _selectedFileIndex,
                                          _fileCount);
-        } else if (currentState == LIVE_SEQUENCER) {
-            // Navigate tracks (row-first)
-            _selectedTrackIndex += event.encoderValue;
-            _selectedTrackIndex = constrain(_selectedTrackIndex, 0, NUM_TRACKS - 1);
-            _liveScreen.drawSequencer(_sequencerGrid, _selectedTrackIndex,
-                                      _currentStep, _currentBPM, _isPlaying,
-                                      NUM_TRACKS, NUM_STEPS);
+            return;
         }
-        return;
+
+        // Button 1 (back) - return to main view
+        if (event.buttonId == 1 && event.state == PRESSED) {
+            currentState = LIVE_MAIN;
+            _liveScreen.drawMainView(
+                _sequencerGrid, _selectedTrackIndex, _currentStep, _currentBPM,
+                _isPlaying, NUM_TRACKS, NUM_STEPS, _currentPage, TRACK_LABELS);
+            updateLEDs();
+            return;
+        }
+
+        // Button 4 (confirm) - assign sample
+        if (event.buttonId == 4 && event.state == PRESSED) {
+            assignSampleToTrack();
+            currentState = LIVE_MAIN;
+            _liveScreen.drawMainView(
+                _sequencerGrid, _selectedTrackIndex, _currentStep, _currentBPM,
+                _isPlaying, NUM_TRACKS, NUM_STEPS, _currentPage, TRACK_LABELS);
+            updateLEDs();
+            return;
+        }
+
+        // Button 3 (action) - clear track
+        if (event.buttonId == 3 && event.state == PRESSED) {
+            clearTrack(_selectedTrackIndex);
+            currentState = LIVE_MAIN;
+            _liveScreen.drawMainView(
+                _sequencerGrid, _selectedTrackIndex, _currentStep, _currentBPM,
+                _isPlaying, NUM_TRACKS, NUM_STEPS, _currentPage, TRACK_LABELS);
+            updateLEDs();
+            return;
+        }
     }
 }
 
@@ -234,10 +285,6 @@ void Live::playTrack(int trackIndex) {
     if (player) {
         String wavPath = _tracks[trackIndex].getWavPath();
 
-        Serial.print(trackIndex);
-        Serial.print(": ");
-        Serial.print(wavPath);
-
         AudioNoInterrupts();
 
         player->play(wavPath.c_str());
@@ -305,19 +352,18 @@ void Live::toggleStep(int track, int step) {
 void Live::advanceStep() {
     _currentStep = (_currentStep + 1) % NUM_STEPS;
 
-    // Trigger tracks with enabled steps
+    // Trigger tracks with enabled steps (audio logic only - no display)
     for (int t = 0; t < NUM_TRACKS; t++) {
         if (_sequencerGrid[t][_currentStep] && _tracks[t].isAssigned) {
             playTrack(t);
         }
     }
 
-    // Update display
-    if (currentState == LIVE_SEQUENCER) {
-        _liveScreen.drawSequencer(_sequencerGrid, _selectedTrackIndex,
-                                  _currentStep, _currentBPM, _isPlaying,
-                                  NUM_TRACKS, NUM_STEPS);
-    }
+    // Mark display for update (decoupled from audio timing)
+    _displayNeedsUpdate = true;
+
+    // Log memory usage periodically (non-blocking, only logs every 5 seconds)
+    logMemoryUsage();
 }
 
 int Live::calculateStepIntervalMicros() {
@@ -331,4 +377,70 @@ String Live::getFileNameWithoutExtension(const String& fileName) {
         return fileName.substring(0, dotIndex);
     }
     return fileName;
+}
+
+void Live::updateLEDs() {
+    // Calculate which 4 steps are visible based on current page
+    int pageStartStep = _currentPage * 4;
+
+    for (int i = 0; i < 4; i++) {
+        int stepIndex = pageStartStep + i;
+        int buttonId = i + 1;  // Buttons 1-4
+
+        bool stepEnabled = _sequencerGrid[_selectedTrackIndex][stepIndex];
+
+        if (stepEnabled) {
+            // Solid on
+            _keyboard->triggerLedForButton(buttonId, true);
+        } else {
+            // Off
+            _keyboard->triggerLedForButton(buttonId, false);
+        }
+    }
+}
+
+void Live::logMemoryUsage() {
+    unsigned long currentTime = millis();
+
+    // Log every MEMORY_LOG_INTERVAL ms
+    if (currentTime - _lastMemoryLogTime >= MEMORY_LOG_INTERVAL) {
+        _lastMemoryLogTime = currentTime;
+
+        // Audio memory usage
+        int audioMemoryUsage = AudioMemoryUsage();
+        int audioMemoryMax = AudioMemoryUsageMax();
+
+        Serial.print("MEMORY: Audio=");
+        Serial.print(audioMemoryUsage);
+        Serial.print("blks (max=");
+        Serial.print(audioMemoryMax);
+        Serial.println(" blks)");
+    }
+}
+
+void Live::cacheSamples() {
+    Serial.println("Caching samples for all assigned tracks...");
+
+    for (int t = 0; t < NUM_TRACKS; t++) {
+        if (_tracks[t].isAssigned) {
+            String path = _tracks[t].getWavPath();
+            char pathBuf[64];
+            path.toCharArray(pathBuf, sizeof(pathBuf));
+
+            // Verify file exists on SD card
+            if (SD.exists(pathBuf)) {
+                Serial.print("Cached track ");
+                Serial.print(t);
+                Serial.print(": ");
+                Serial.println(pathBuf);
+            } else {
+                Serial.print("Failed to cache track ");
+                Serial.print(t);
+                Serial.print(": ");
+                Serial.println(pathBuf);
+            }
+        }
+    }
+
+    logMemoryUsage();
 }

@@ -105,9 +105,10 @@ void LiveScreen::drawSampleSelect(const String* fileList, int selectedFileIndex,
     _screen->display();
 }
 
-void LiveScreen::drawSequencer(const bool sequencerGrid[][16], int selectedTrack,
-                               int currentStep, int currentBPM, bool isPlaying,
-                               int numTracks, int numSteps) {
+void LiveScreen::drawMainView(const bool sequencerGrid[][16], int selectedTrack,
+                              int currentStep, int currentBPM, bool isPlaying,
+                              int numTracks, int numSteps, int currentPage,
+                              const char** trackLabels) {
     _screen->clear();
     _screen->setHeaderFont();
 
@@ -117,9 +118,9 @@ void LiveScreen::drawSequencer(const bool sequencerGrid[][16], int selectedTrack
     _screen->drawStr(0, 10, header);
     _screen->setNormalFont();
 
-    const int trackLabelWidth = 16;  // Space for track labels (e.g., "kick")
+    const int trackLabelWidth = 16;  // Space for track labels
     const int cellWidth = 7;         // Width of each cell
-    const int cellHeight = 12;       // Height of each cell (increased for 4 tracks)
+    const int cellHeight = 12;       // Height of each cell
     const int gridStartX = trackLabelWidth + 1;
     const int gridStartY = 14;
 
@@ -127,49 +128,124 @@ void LiveScreen::drawSequencer(const bool sequencerGrid[][16], int selectedTrack
     for (int track = 0; track < numTracks; track++) {
         int yPos = gridStartY + (track * cellHeight);
 
-        // Draw track label (or placeholder)
-        const char* trackLabels[] = {"kick", "snare", "hat", "perc"};
-        if (track < 4) {
+        // Draw track label from parameters
+        if (trackLabels && track < numTracks) {
             _screen->drawStr(0, yPos + 9, trackLabels[track]);
         }
 
-        // Draw 16 steps for this track
-        for (int step = 0; step < numSteps; step++) {
+        // Draw 4 steps for this page
+        int pageStartStep = currentPage * 4;
+        for (int step = 0; step < 4; step++) {
+            int absoluteStep = pageStartStep + step;
+            if (absoluteStep >= numSteps) break;
+
             int xPos = gridStartX + (step * cellWidth);
 
-            bool isCurrentStep = (step == currentStep && isPlaying);
-            bool isSelected = (track == selectedTrack && step == currentStep);
-            bool isActive = sequencerGrid[track][step];
+            bool isCurrentStep = (absoluteStep == currentStep && isPlaying);
+            bool isSelected =
+                (track == selectedTrack && absoluteStep == currentStep);
+            bool isActive = sequencerGrid[track][absoluteStep];
 
             // Draw cell based on state
             if (isCurrentStep) {
                 // Playhead indicator - thick border
-                _screen->drawBox(xPos - 1, yPos - 1, cellWidth + 2, cellHeight + 2);
+                _screen->drawBox(xPos - 1, yPos - 1, cellWidth + 2,
+                                 cellHeight + 2);
                 if (isActive) {
-                    _screen->drawBox(xPos + 1, yPos + 1, cellWidth - 2, cellHeight - 2);
+                    _screen->drawBox(xPos + 1, yPos + 1, cellWidth - 2,
+                                     cellHeight - 2);
                 }
             } else if (isSelected) {
                 // Selected cell - inverted
                 _screen->drawBox(xPos, yPos, cellWidth, cellHeight);
                 _screen->getDisplay()->setDrawColor(0);  // Invert
                 if (isActive) {
-                    _screen->drawBox(xPos + 2, yPos + 2, cellWidth - 4, cellHeight - 4);
+                    _screen->drawBox(xPos + 2, yPos + 2, cellWidth - 4,
+                                     cellHeight - 4);
                 }
                 _screen->getDisplay()->setDrawColor(1);  // Reset
             } else {
                 // Normal cell
                 if (isActive) {
-                    _screen->drawBox(xPos + 1, yPos + 1, cellWidth - 2, cellHeight - 2);
-                } else {
-                    // Draw thin border using U8G2 drawFrame
-                    _screen->getDisplay()->drawFrame(xPos, yPos, cellWidth, cellHeight);
+                    _screen->drawBox(xPos + 1, yPos + 1, cellWidth - 2,
+                                     cellHeight - 2);
                 }
             }
         }
     }
 
-    // Footer help text
-    _screen->drawStr(0, 63, "Enc:Trk B2:Tog B3:Play");
+    _screen->display();
+}
+
+void LiveScreen::drawSequencer(const bool sequencerGrid[][16],
+                               int selectedTrack, int currentStep,
+                               int currentBPM, bool isPlaying, int numTracks,
+                               int numSteps) {
+    _screen->clear();
+    _screen->setHeaderFont();
+
+    // Header with track info, BPM and play status
+    char header[30];
+    const char* trackLabels[] = {"A", "B", "C", "D"};
+    const char* trackLabel =
+        (selectedTrack < numTracks) ? trackLabels[selectedTrack] : "?";
+    sprintf(header, "Trk %s %dBPM %s", trackLabel, currentBPM,
+            isPlaying ? "[>]" : "[ ]");
+    _screen->drawStr(0, 10, header);
+    _screen->setNormalFont();
+
+    const int trackLabelWidth = 16;  // Space for track labels
+    const int cellWidth = 7;         // Width of each cell
+    const int cellHeight = 12;       // Height of each cell
+    const int gridStartX = trackLabelWidth + 1;
+    const int gridStartY = 14;
+
+    // Draw only selected track with 4 steps at a time (page 0-3)
+    int currentPage = currentStep / 4;
+    int pageStartStep = currentPage * 4;
+    int yPos = gridStartY;
+
+    // Draw track header
+    if (selectedTrack < numTracks) {
+        _screen->drawStr(0, yPos + 9, trackLabel);
+    }
+
+    // Draw 4 steps for the current page
+    for (int step = 0; step < 4; step++) {
+        int absoluteStep = pageStartStep + step;
+        if (absoluteStep >= numSteps) break;
+
+        int xPos = gridStartX + (step * cellWidth);
+
+        bool isCurrentStep = (absoluteStep == currentStep && isPlaying);
+        bool isActive = sequencerGrid[selectedTrack][absoluteStep];
+
+        // Draw cell based on state
+        if (isCurrentStep) {
+            // Playhead indicator - thick border
+            _screen->drawBox(xPos - 1, yPos - 1, cellWidth + 2,
+                             cellHeight + 2);
+            if (isActive) {
+                _screen->drawBox(xPos + 1, yPos + 1, cellWidth - 2,
+                                 cellHeight - 2);
+            }
+        } else {
+            // Normal cell
+            if (isActive) {
+                _screen->drawBox(xPos + 1, yPos + 1, cellWidth - 2,
+                                 cellHeight - 2);
+            } else {
+                // Draw thin border
+                _screen->getDisplay()->drawFrame(xPos, yPos, cellWidth,
+                                                 cellHeight);
+            }
+        }
+    }
+
+    // Footer with page info
+    char footer[30];
+    sprintf(footer, "Page %d/4", currentPage + 1);
+    _screen->drawStr(0, 63, footer);
 
     _screen->display();
 }
