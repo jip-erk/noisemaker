@@ -15,9 +15,9 @@ Live::Live(Controls* keyboard, Screen* screen, NavigationCallback navCallback,
 
     // _sequencer initialized by its constructor
 
-    // Initialize track volumes (0.5) and pitch (1.0)
+    // Initialize track volumes (0.25) and pitch (1.0)
     for (int t = 0; t < NUM_TRACKS; t++) {
-        _trackVolumes[t] = 0.5f;
+        _trackVolumes[t] = 0.25f;
         _trackPitch[t] = 1.0f;
     }
     _controlActive = false;
@@ -161,9 +161,9 @@ void Live::handleEvent(Controls::ButtonEvent event) {
                 float newVolume = _trackVolumes[_selectedTrackIndex] +
                                   (event.encoderValue * VOLUME_STEP);
 
-                // Snap to 0.5 if close (within half a step)
-                if (abs(newVolume - 0.5f) < (VOLUME_STEP / 2.0f)) {
-                    newVolume = 0.5f;
+                // Snap to 0.25 if close (within half a step)
+                if (abs(newVolume - 0.25f) < (VOLUME_STEP / 2.0f)) {
+                    newVolume = 0.25f;
                 }
 
                 setTrackVolume(_selectedTrackIndex, newVolume);
@@ -210,13 +210,40 @@ void Live::handleEvent(Controls::ButtonEvent event) {
                 return;
             }
 
+            // Button 4 Held: Change BPM
+            if (event.button4Held) {
+                _controlActive = true;
+                _controlWasUsed = true;
+
+                int currentBPM = _sequencer.getBPM();
+                int newBPM = currentBPM + event.encoderValue;
+                _sequencer.setBPM(newBPM);
+
+                if (_sequencer.isPlaying() && _timerCallback) {
+                    _timerCallback(calculateStepIntervalMicros());
+                }
+
+                _displayNeedsUpdate = true;
+
+                // Redraw
+                _liveScreen.drawMainView(
+                    _sequencer.getGrid(), _selectedTrackIndex,
+                    _sequencer.getCurrentStep(), _sequencer.getBPM(),
+                    _sequencer.isPlaying(), NUM_TRACKS, NUM_STEPS, _currentPage,
+                    _stepRange, TRACK_LABELS, _tracks,
+                    _trackVolumes[_selectedTrackIndex],
+                    _trackPitch[_selectedTrackIndex]);
+                return;
+            }
+
             if (_controlActive) {
                 _controlActive = false;
             }
         }
 
-        // Reset control state on button release
-        if (event.buttonId >= 1 && event.buttonId <= 2 &&
+        // Reset control state on button release (1, 2, or 4)
+        if (((event.buttonId >= 1 && event.buttonId <= 2) ||
+             event.buttonId == 4) &&
             event.state == NOT_PRESSED) {
             _controlActive = false;
             // _controlWasUsed stays true to prevent toggle
@@ -454,6 +481,12 @@ void Live::loadFileList() {
 
         String filename = entry.name();
         if (!entry.isDirectory()) {
+            // Skip hidden files (e.g. ._REC001.wav)
+            if (filename.startsWith(".")) {
+                entry.close();
+                continue;
+            }
+
             if (filename.endsWith(".WAV") || filename.endsWith(".wav")) {
                 // Skip .bdf files
                 if (!filename.endsWith(".bdf") && !filename.endsWith(".BDF")) {
@@ -525,8 +558,6 @@ void Live::playTrack(int trackIndex) {
         // String wavPath = _tracks[trackIndex].getWavPath();
         String wavPath = _tracks[trackIndex].fileName;
         String fullPath = _tracks[trackIndex].getWavPath();
-
-        playWav(_filename);
 
         AudioNoInterrupts();
 

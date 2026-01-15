@@ -154,6 +154,12 @@ void LiveScreen::drawMainView(const bool sequencerGrid[][32], int selectedTrack,
     // SEQ label
     _screen->setHeaderFont();
     _screen->drawStr(trackBoxX + trackBoxWidth + 4, 10, "SEQ");
+
+    // BPM Display
+    char bpmStr[10];
+    sprintf(bpmStr, "%d", currentBPM);
+    int bpmWidth = _screen->getDisplay()->getStrWidth(bpmStr);
+    _screen->drawStr(128 - bpmWidth, 10, bpmStr);
     _screen->setNormalFont();
 
     // Sample name under header

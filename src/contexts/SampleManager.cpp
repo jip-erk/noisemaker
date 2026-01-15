@@ -38,6 +38,12 @@ void SampleManager::loadFileList() {
 
         String filename = entry.name();
         if (!entry.isDirectory()) {
+            // Skip hidden files
+            if (filename.startsWith(".")) {
+                entry.close();
+                continue;
+            }
+
             // Filter basic file types if needed, or just show everything
             if (filename.endsWith(".WAV") || filename.endsWith(".wav") ||
                 filename.endsWith(".bdf") ||

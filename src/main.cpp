@@ -24,7 +24,7 @@
 #define SDCARD_SCK_PIN 13
 
 // Audio configuration constants
-#define AUDIO_MEMORY_BLOCKS 40
+#define AUDIO_MEMORY_BLOCKS 20
 #define AUDIO_SHIELD_INIT_DELAY_MS 100
 #define DEFAULT_MIC_GAIN 10
 

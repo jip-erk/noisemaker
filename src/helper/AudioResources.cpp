@@ -56,15 +56,16 @@ AudioResources::AudioResources() {
     }
 
     // Set mixer gains to prevent clipping with 4 inputs
-    mixer4.gain(0, .5);
-    mixer4.gain(1, .5);
-    mixer4.gain(2, .5);
-    mixer4.gain(3, .5);
+    // Reduced from 0.5 to 0.25 to prevent summation clipping
+    mixer4.gain(0, .25);
+    mixer4.gain(1, .25);
+    mixer4.gain(2, .25);
+    mixer4.gain(3, .25);
 
     // Mixer 2 settings
-    mixer4_2.gain(0, .5);
-    mixer4_2.gain(1, .5);
-    mixer4_2.gain(2, .5);
+    mixer4_2.gain(0, .25);
+    mixer4_2.gain(1, .25);
+    mixer4_2.gain(2, .25);
     mixer4_2.gain(3, 0);  // Unused
 
     // Final mixer settings
